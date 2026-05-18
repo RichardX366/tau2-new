@@ -1,0 +1,42 @@
+[
+  {
+    "query": "Error: Order not found.",
+    "guidance": "If the user provides an order ID that cannot be found or verified, then you should look up their profile and manually review their recent orders to identify the correct order."
+  },
+  {
+    "query": "Error: User not found",
+    "guidance": "If the user\u2019s account cannot be found using the provided email, then you should ask if they have any other identifiers available that could help locate their account, such as another email address or any other identifying information, rather than immediately requesting specific personal details like name and ZIP code."
+  },
+  {
+    "query": "Yes, proceed with changing the size of the Hiking Boots (item ID 1615379700) in order #W5199551 from size 10 to size 8 and using PayPal (paypal_5364164) for any price difference.",
+    "guidance": "If the user requests a product size change and you need to identify the correct variant, then you should use the get_product_details call to retrieve the list of size variants so you can select the correct item ID."
+  },
+  {
+    "query": "I\u2019d like to upgrade all the items I purchased to the most expensive versions available. Can you help with that?",
+    "guidance": "If the user requests to upgrade items to the most expensive or cheapest versions, then you should ensure that clothing and shoe sizes remain consistent when proposing or confirming upgrades."
+  },
+  {
+    "query": "I want to return a skateboard, garden hose, backpack, keyboard, and bed from a recent order and cancel the garden hose from a new order I just placed. How much refund will I get after all this?",
+    "guidance": "If the user requests to cancel individual items from an order, then you should inform them that cancellations apply only to entire orders and individual item cancellations are not possible."
+  },
+  {
+    "query": "For order #W7553978, I want to return both skateboards (item_ids 4545791457 and 3098764622) and the smart watch (item_id 1631806422), but not the vacuum cleaner (item_id 1345513440). I would like the refund to go back to the original payment method, the Mastercard ending in 9375. Also, I recently bought an e-reader; please check if it is eligible for return or exchange. If it is available online, I would prefer to exchange it for the same model; if not, I want to return it for a refund.",
+    "guidance": "If the user wants to exchange an item, then you should tell them they can exchange it for any item within the same product line, not only a different variant of that item."
+  },
+  {
+    "query": "My first name is Sofia, last name Li, and my ZIP code is 78260.\n\nI will look up the order and item IDs, but I know the skateboard is in a different order from the bicycle, puzzle, and camera. I\u2019m not sure if the orders have been delivered yet, but I can check if needed.\n\nFor the exchanges:\n- For the bicycle, I want to exchange it for the next larger frame size, possibly a 24-inch frame, but please check available options once you see the product.\n- For the jigsaw puzzle, I want the same difficulty, with 1000 more pieces, and preferably an animal theme instead of art.\n- For the camera, I want a version with slightly lower resolution, around 18\u201320MP instead of 24MP, keeping the other features the same.\n\nFor the skateboard, I want to cancel only that item; if that\u2019s not possible, I\u2019m okay with canceling the entire order, with the reason \u201cno longer needed.\u201d\n\nFor payment or refund of any price differences, I prefer to use the other card I have on file, not the original payment method.\n\nPlease let me know what you need from me next.",
+    "guidance": "If the user requests an exchange involving a bicycle, then you should treat mountain bikes and road bikes as the same product type when determining available exchange options."
+  },
+  {
+    "query": "The name on the account is Mei Ahmed, and the ZIP code is 78705. Please look up the account with that information. I will need a minute to find the order ID and the details of the two skateboards I want to return.",
+    "guidance": "If the user asks you to wait while they find their order ID, then you should look up their account by available details and inform them of all their orders. Be sure to inform them of each order\u2019s contents in the same message."
+  },
+  {
+    "query": "I need help with my order. I want to exchange the Bluetooth Speaker I ordered for the cheapest green Bluetooth Speaker you have. I also want to change the delivery address from my Los Angeles location to my New York City address that is on file from my other order. Can you help with both of these requests?",
+    "guidance": "If the user requests to exchange items in a pending order, then you should allow it by treating the request as modifying items in the pending order."
+  },
+  {
+    "query": "I\u2019d like to upgrade all the items from my recent orders to the most expensive versions available, keeping the shoe size the same but not caring about other features. Can you help me with that?",
+    "guidance": "If the user says that only one feature (e.g., shoe size) must remain the same and that all other features don't matter, then you should consider all available variants for upgrades, not just those matching the original item's other properties."
+  }
+]

@@ -14,6 +14,9 @@ from tau2.agent.llm_agent import (
     create_llm_gt_agent,
     create_llm_solo_agent,
 )
+from tau2.agent.tlm_agent import create_tlm_agent
+from tau2.agent.guidance_agent import create_guidance_agent
+from tau2.agent.tlm_guidance_agent import create_tlm_guidance_agent
 from tau2.data_model.tasks import Task
 from tau2.domains.airline.environment import (
     get_environment as airline_domain_get_environment,
@@ -74,9 +77,9 @@ class Registry:
     def __init__(self):
         self._users: Dict[str, type] = {}  # HalfDuplexUser or FullDuplexUser
         self._agent_factories: Dict[str, Callable] = {}  # Factory functions for agents
-        self._agent_task_filters: Dict[
-            str, Callable[[Task], bool]
-        ] = {}  # Optional task filters per agent
+        self._agent_task_filters: Dict[str, Callable[[Task], bool]] = (
+            {}
+        )  # Optional task filters per agent
         self._agent_metadata: Dict[str, dict] = {}  # Optional metadata per agent
         self._domains: Dict[str, Callable[[], Environment]] = {}
         self._tasks: Dict[str, Callable[[Optional[str]], list[Task]]] = {}
@@ -289,6 +292,9 @@ try:
 
     # Agent factories
     registry.register_agent_factory(create_llm_agent, "llm_agent")
+    registry.register_agent_factory(create_tlm_agent, "tlm_agent")
+    registry.register_agent_factory(create_guidance_agent, "guidance_agent")
+    registry.register_agent_factory(create_tlm_guidance_agent, "tlm_guidance_agent")
     registry.register_agent_factory(
         create_llm_gt_agent,
         "llm_agent_gt",

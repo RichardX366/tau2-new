@@ -34,6 +34,7 @@ from tau2.user.user_simulator_base import (
     UserError,
     is_valid_user_history_message,
 )
+from tau2.utils.guidance import load_embeddings
 from tau2.utils.llm_utils import get_cost
 from tau2.utils.utils import format_time, get_now
 
@@ -442,6 +443,8 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
             simulation_id=simulation_id,
             timeout=timeout,
         )
+
+        load_embeddings(domain)  # Ensure guidance embeddings are loaded for the domain
 
         # Half-duplex specific attributes
         self.mode = CommunicationMode.HALF_DUPLEX
@@ -904,10 +907,11 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
         Get the trajectory of the simulation.
         The trajectory is sorted by timestamp, turn_idx are added to messages, trajectory is returned.
         """
-        messages: list[Message] = sorted(
-            deepcopy(self.trajectory),
-            key=lambda x: x.timestamp,
-        )
+        # messages: list[Message] = sorted(
+        #     deepcopy(self.trajectory),
+        #     key=lambda x: x.timestamp,
+        # )
+        messages: list[Message] = deepcopy(self.trajectory)
         trajectory = []
         for i, msg in enumerate(messages):
             msg = deepcopy(msg)

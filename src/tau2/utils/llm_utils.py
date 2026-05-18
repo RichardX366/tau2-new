@@ -49,9 +49,9 @@ warnings.filterwarnings(
 )
 
 # Configure httpx connection limits for LiteLLM
-httpx_limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+httpx_limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
 litellm.client_session = httpx.Client(limits=httpx_limits)
-litellm.aclient_session = httpx.AsyncClient(limits=httpx_limits)
+# litellm.aclient_session = httpx.AsyncClient(limits=httpx_limits)
 
 # Context variable to store the directory where LLM debug logs should be written
 llm_log_dir: ContextVar[Optional[Path]] = ContextVar("llm_log_dir", default=None)
@@ -61,7 +61,7 @@ llm_log_mode: ContextVar[str] = ContextVar("llm_log_mode", default="latest")
 
 # litellm._turn_on_debug()
 
-logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+logging.getLogger("LiteLLM").setLevel(logging.ERROR)
 
 if USE_LANGFUSE:
     litellm.success_callback = ["langfuse"]

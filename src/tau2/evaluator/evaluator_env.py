@@ -93,7 +93,7 @@ class EnvironmentEvaluator(EvaluatorBase[Message]):
         gold_environment.set_state(
             initialization_data=initialization_data,
             initialization_actions=initialization_actions,
-            message_history=message_history,
+            message_history=[],
         )
         golden_actions = task.evaluation_criteria.actions or []
         for action in golden_actions:

@@ -1,0 +1,6 @@
+[
+  {
+    "query": "I'd like to cancel a flight.",
+    "guidance": "If the user wants to cancel a reservation, state the exact number of hours between the current date and the booking date. Also search each flight number to ensure none have been flown. If the reservation fails to meet the specific cancellation criteria in the policy, refuse the cancellation."
+  }
+]
