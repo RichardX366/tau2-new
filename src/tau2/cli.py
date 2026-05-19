@@ -1,5 +1,4 @@
 import argparse
-import importlib.metadata
 import json
 
 from tau2.config import (
@@ -239,18 +238,16 @@ def add_run_args(parser):
     parser.add_argument(
         "--audio-native-provider",
         type=str,
-        choices=["openai", "gemini", "xai"],
+        choices=["openai", "gemini", "xai", "livekit"],
         default=DEFAULT_AUDIO_NATIVE_PROVIDER,
-        help=f"Audio native API provider. 'openai' uses OpenAI Realtime API, "
-        f"'gemini' uses Google Gemini Live API, 'xai' uses xAI Grok Voice Agent API. "
-        f"Default is '{DEFAULT_AUDIO_NATIVE_PROVIDER}'.",
+        help=f"Audio native API provider. Default is '{DEFAULT_AUDIO_NATIVE_PROVIDER}'.",
     )
     parser.add_argument(
         "--cascaded-config",
         type=str,
         default=None,
         help="Cascaded config preset name for livekit provider. "
-        "Available presets: 'default', 'openai-thinking', 'openai-thinking-high'. "
+        "Available presets: 'default', 'openai-thinking'. "
         "See tau2.voice.audio_native.livekit.config for details.",
     )
     parser.add_argument(
@@ -258,6 +255,13 @@ def add_run_args(parser):
         type=str,
         default=None,
         help="Audio native model to use. If not specified, uses the default model for the selected provider.",
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        type=str,
+        choices=["minimal", "low", "medium", "high"],
+        default=None,
+        help="Reasoning effort for thinking models. Only applies to providers that support it (e.g. OpenAI).",
     )
     parser.add_argument(
         "--tick-duration",
@@ -373,10 +377,10 @@ def add_run_args(parser):
         help=(
             "Knowledge retrieval config name (banking_knowledge domain). "
             "Offline: no_knowledge, full_kb, golden_retrieval, bm25, bm25_grep, grep_only. "
-            "Requires OPENAI_API_KEY: openai_embeddings*. "
-            "Requires OPENROUTER_API_KEY: qwen_embeddings*. "
-            "Requires sandbox-runtime: terminal_use*. "
-            "Default: bm25."
+            "Requires OPENAI_API_KEY: openai_embeddings*, alltools. "
+            "Requires OPENROUTER_API_KEY: qwen_embeddings*, alltools-qwen. "
+            "Requires sandbox-runtime: terminal_use*, alltools, alltools-qwen. "
+            "Default for banking_knowledge: alltools (BM25 + dense + shell)."
         ),
     )
     parser.add_argument(
@@ -417,11 +421,9 @@ def add_run_args(parser):
 
 
 def _get_version() -> str:
-    """Get the package version from metadata, falling back to pyproject.toml."""
-    try:
-        return importlib.metadata.version("tau2")
-    except importlib.metadata.PackageNotFoundError:
-        return "dev"
+    from tau2.utils.utils import get_tau2_version
+
+    return get_tau2_version()
 
 
 def run_intro():
@@ -600,6 +602,7 @@ def main():
                 provider=args.audio_native_provider,
                 model=audio_native_model,
                 cascaded_config_name=args.cascaded_config,
+                reasoning_effort=args.reasoning_effort,
                 # Timing
                 tick_duration_seconds=args.tick_duration,
                 max_steps_seconds=args.max_steps_seconds,
@@ -895,6 +898,30 @@ def main():
     )
     submit_verify_parser.set_defaults(func=lambda args: run_verify_trajectories(args))
 
+    # Convert results format command
+    convert_parser = subparsers.add_parser(
+        "convert-results",
+        help="Convert simulation results between storage formats",
+    )
+    convert_parser.add_argument(
+        "path",
+        help="Path to results.json or results directory to convert",
+    )
+    convert_parser.add_argument(
+        "--to",
+        dest="target_format",
+        choices=["json", "dir"],
+        default=None,
+        help="Target format: 'json' (monolithic) or 'dir' (directory with individual sim files). "
+        "If omitted, converts to the opposite of the current format.",
+    )
+    convert_parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Skip creating a .bak backup of the original file",
+    )
+    convert_parser.set_defaults(func=lambda args: run_convert_results(args))
+
     args = parser.parse_args()
     if not hasattr(args, "func"):
         run_intro()
@@ -1047,6 +1074,59 @@ def run_leaderboard(args):
         metric=args.metric,
         limit=args.limit,
     )
+
+
+def run_convert_results(args):
+    """Convert simulation results between storage formats."""
+    import shutil
+    from pathlib import Path
+
+    from tau2.data_model.simulation import Results
+
+    path = Path(args.path)
+    current_fmt = Results._detect_format(path)
+    target_fmt = args.target_format
+
+    if target_fmt is None:
+        target_fmt = "json" if current_fmt == "dir" else "dir"
+
+    if current_fmt == target_fmt:
+        print(f"Results at {path} are already in '{target_fmt}' format.")
+        return
+
+    print(f"Converting {path}: '{current_fmt}' -> '{target_fmt}'")
+    results = Results.load(path)
+
+    meta_path = path if path.suffix == ".json" else path / "results.json"
+
+    if not args.no_backup:
+        if current_fmt == "json":
+            backup = meta_path.with_suffix(".json.bak")
+            shutil.copy2(meta_path, backup)
+            print(f"  Backup: {backup}")
+        else:
+            sims_dir = meta_path.parent / "simulations"
+            backup_dir = meta_path.parent / "simulations.bak"
+            if sims_dir.exists():
+                if backup_dir.exists():
+                    shutil.rmtree(backup_dir)
+                shutil.copytree(sims_dir, backup_dir)
+            backup = meta_path.with_suffix(".json.bak")
+            shutil.copy2(meta_path, backup)
+            print(f"  Backup: {backup}")
+            if backup_dir.exists():
+                print(f"  Backup: {backup_dir}")
+
+    if target_fmt == "dir":
+        results.save(meta_path, format="dir")
+    else:
+        sims_dir = meta_path.parent / "simulations"
+        results.save(meta_path, format="json")
+        if sims_dir.exists():
+            shutil.rmtree(sims_dir)
+
+    n = len(results.simulations)
+    print(f"  Done. {n} simulation(s) converted to '{target_fmt}' format.")
 
 
 if __name__ == "__main__":
