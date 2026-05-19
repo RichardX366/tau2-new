@@ -95,16 +95,17 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
 
 
 if __name__ == "__main__":
+    load_embeddings(DOMAIN)
+
     results_dict = {}
     modified_tasks = []
-    load_embeddings(DOMAIN)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {}
         for simulation in simulations:
             task_id = simulation["task_id"]
             future = executor.submit(
-                worker, to_tau2_messages(simulation["messages"]), task_id
+                worker, to_tau2_messages(simulation["messages"]), task_id  # type: ignore
             )
             futures[future] = task_id
 

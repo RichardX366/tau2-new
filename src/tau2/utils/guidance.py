@@ -1,11 +1,10 @@
-from tlm import TLM
+from asyncio import gather, get_event_loop
+
 import re
-from openai import OpenAI
+from litellm import acompletion
 from openai.types.chat import ChatCompletionMessageParam
-from tlm.inference import InferenceResult
 from cleanlab_tlm.utils.chat import form_prompt_string
 from json import dump, load
-from jax import numpy as jnp
 
 from tau2.data_model.message import (
     APICompatibleMessage,
@@ -16,18 +15,13 @@ from tau2.data_model.message import (
 from tau2.utils.llm_utils import generate, to_litellm_messages
 
 all_guidance: list[dict] = None  # type: ignore
-guidance_embeddings: jnp.ndarray = None  # type: ignore
 
-openai_client = OpenAI()
-
-
-REWRITE_QUERY_TRUSTWORTHINESS_THRESHOLD = 0.75
 MAX_MESSAGES_TO_CONSIDER = 35
 REWRITE_QUERY_PROMPT = """You are a query rewriter system to formulate a self-contained query out of a user message that may (implicitly) reference prior message history.
 
-You will be given a Message History along with the Latest User Message.
-
+You will be given a Message History, the Latest User Message, and a Question that will be asked of the Latest User Message.
 Your output should be a rewritten query that enables anyone to understand what the user is requesting, without having to know the user's Message History or the Latest User Message.
+It must also have enough information for the Question to be answerable.
 
 Notes:
 - If the Latest User Message is self-contained, then output it verbatim.
@@ -63,6 +57,10 @@ Rewriting Rules:
 {query}
 </latest_user_message>
 
+<question>
+{question}
+</question>
+
 ## Output Instructions
 
 Do NOT answer the User Message, only rewrite it.
@@ -70,8 +68,7 @@ Do NOT answer the User Message, only rewrite it.
 Output a self-contained version of the latest user message, that is minimally modified to account for their prior message history if necessary.
 
 Keep the above rules in mind. Output only your rewritten version of the latest user message, nothing else."""
-EMBEDDING_MODEL = "text-embedding-3-large"
-COSINE_SIMILARITY_THRESHOLD = 0.45
+GUIDANCE_DETERMINATION_PROMPT = """You are an expert assistant that determines whether a certain question is true about the query you are provided. You are only to respond with the word "Yes" or "No" and ABSOLUTELY NOTHING ELSE."""
 AI_GUIDANCE_PROMPT = """
 Your role is to rephrase Review statements into Guidance statements when necessary.
 
@@ -187,106 +184,74 @@ def format_messages_to_string(
     return messages_str
 
 
-def prompt_llm_for_rewrite_query(
-    query: str, messages: list[ChatCompletionMessageParam]
-) -> InferenceResult:
-    """Given the query and message history, prompt the TLM for a response that could possibly be self contained.
-    If there are no messages in the message history, the TLM will not be called and the original query will be returned.
-    If the tlm call fails, then the original query is returned.
-    """
-    if len(messages) > 0:
-        messages_str = format_messages_to_string(messages, query)
-        tlm_prompt_str = REWRITE_QUERY_PROMPT.format(
-            query=query,
-            messages=messages_str,
-        )
-
-        response = generate(
-            model="gpt-4.1-mini",
-            messages=[UserMessage(content=tlm_prompt_str, role="user")],
-        )
-
-        if response is not None:
-            return InferenceResult(
-                response=response.content,  # type: ignore
-                confidence_score=1.0,
-                usage={},
-                metadata=None,
-                evals=None,
-                explanation=None,
-            )
-
-    return InferenceResult(
-        response=query,
-        confidence_score=1.0,
-        usage={},
-        metadata=None,
-        evals=None,
-        explanation=None,
-    )
-
-
-def maybe_rewrite_query(
+async def maybe_rewrite_query(
     query: str,
-    rewritten_question: str | None,
+    question: str,
     messages: list[ChatCompletionMessageParam] | None,
 ) -> str:
     """Handles the logic for rewriting a query if needed.
-    - If a rewritten query is provided, it will be used directly.
     - If messages are provided and the conversation is longer than a single turn it will call the LLM to rewrite the query.
     """
-    if rewritten_question is not None:
-        return rewritten_question
 
     if messages is None or len(messages) == 0:
         return query
 
-    else:
-        response = prompt_llm_for_rewrite_query(query=query, messages=messages)
-        if (
-            response["confidence_score"] is not None
-            and response["confidence_score"] >= REWRITE_QUERY_TRUSTWORTHINESS_THRESHOLD
-        ):
-            return str(response["response"])
-    return query  # If the trustworthiness score is below the threshold or messages is not passed in, omit the rewrite
+    messages_str = format_messages_to_string(messages, query)
 
-
-def create_guidance(
-    query: str,
-    messages: list[ChatCompletionMessageParam],
-    explanation: str,
-    response: str,
-    tlm: TLM,
-    domain: str,
-):
-    global all_guidance
-    GUIDANCE_FILE = f"data/tau2/domains/{domain}/guidance.json"
-
-    try:
-        with open(GUIDANCE_FILE, "r") as f:
-            all_guidance = load(f)
-    except FileNotFoundError:
-        all_guidance = []
-
-    new_query = maybe_rewrite_query(query, None, messages)
-
-    guidance = tlm.create(
+    response = await acompletion(
+        model="gpt-4.1-mini",
         messages=[
             {
                 "role": "user",
-                "content": AI_GUIDANCE_PROMPT.format(
-                    query=query, review=explanation, response=response
+                "content": REWRITE_QUERY_PROMPT.format(
+                    query=query, messages=messages_str, question=question
                 ),
             }
         ],
     )
 
-    to_add = {"query": new_query, "guidance": guidance["response"]["choices"][0]["message"]["content"]}  # type: ignore
+    if response is not None:
+        return response.choices[0].message.content or ""  # type: ignore
 
-    all_guidance.append(to_add)
+    return query  # Return original query if response is None
 
-    with open(GUIDANCE_FILE, "w") as f:
-        dump(all_guidance, f, indent=2)
+
+# def create_guidance(
+#     query: str,
+#     messages: list[ChatCompletionMessageParam],
+#     explanation: str,
+#     response: str,
+#     tlm: TLM,
+#     domain: str,
+# ):
+#     global all_guidance
+#     GUIDANCE_FILE = f"data/tau2/domains/{domain}/guidance.json"
+
+#     try:
+#         with open(GUIDANCE_FILE, "r") as f:
+#             all_guidance = load(f)
+#     except FileNotFoundError:
+#         all_guidance = []
+
+#     new_query = maybe_rewrite_query(query, None, messages)
+
+#     guidance = tlm.create(
+#         messages=[
+#             {
+#                 "role": "user",
+#                 "content": AI_GUIDANCE_PROMPT.format(
+#                     query=query, review=explanation, response=response
+#                 ),
+#             }
+#         ],
+#     )
+
+#     to_add = {"query": new_query, "guidance": guidance["response"]["choices"][0]["message"]["content"]}  # type: ignore
+
+#     all_guidance.append(to_add)
+
+#     with open(GUIDANCE_FILE, "w") as f:
+#         dump(all_guidance, f, indent=2)
 
 
 def consult_ai_guidance(
@@ -294,28 +259,42 @@ def consult_ai_guidance(
     messages: list[ChatCompletionMessageParam],
     isToolCall: bool = False,
 ) -> list[str]:
-    # rewrite query if needed
-    if isToolCall:
-        rewritten_query = query
-    else:
-        rewritten_query = maybe_rewrite_query(query, None, messages)
 
-    client = OpenAI()
+    async def determine_guidance_relevance(guidance: dict) -> bool:
+        if isToolCall:
+            rewritten_query = query
+        else:
+            rewritten_query = await maybe_rewrite_query(
+                query, guidance["query"], messages
+            )
 
-    embedding_request = client.embeddings.create(
-        input=rewritten_query, model=EMBEDDING_MODEL
-    )
+        determination_response = await acompletion(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": GUIDANCE_DETERMINATION_PROMPT,
+                },
+                {
+                    "role": "user",
+                    "content": f"""Query: {rewritten_query}
+Question: {guidance["query"]}""",
+                },
+            ],
+        )
 
-    embedding = jnp.array(embedding_request.data[0].embedding)
+        return (
+            "yes" in determination_response.choices[0].message.content.strip().lower()  # type: ignore
+        )
 
-    cosine_similarities = jnp.dot(guidance_embeddings, embedding) / (
-        jnp.linalg.norm(guidance_embeddings, axis=1) * jnp.linalg.norm(embedding)
+    request = get_event_loop().run_until_complete(
+        gather(*[determine_guidance_relevance(guidance) for guidance in all_guidance])
     )
 
     guidance_returned = [
-        all_guidance[i]["guidance"]
-        for i in range(len(all_guidance))
-        if cosine_similarities[i] >= COSINE_SIMILARITY_THRESHOLD
+        guidance["guidance"]
+        for guidance, determination in zip(all_guidance, request)
+        if determination
     ]
 
     # print(f"Returned {len(guidance_returned)} guidance entries")
@@ -324,7 +303,7 @@ def consult_ai_guidance(
 
 
 def load_embeddings(domain: str):
-    global guidance_embeddings, all_guidance
+    global all_guidance
 
     if all_guidance is not None:
         return
@@ -336,15 +315,6 @@ def load_embeddings(domain: str):
             all_guidance = load(f)
     except FileNotFoundError:
         all_guidance = []
-
-    if len(all_guidance) == 0:
-        guidance_embeddings = jnp.array([])
-        return
-
-    response = openai_client.embeddings.create(
-        input=[g["query"] for g in all_guidance], model=EMBEDDING_MODEL
-    )
-    guidance_embeddings = jnp.array([data.embedding for data in response.data])
 
 
 def get_guidance_message(messages: list[APICompatibleMessage]):
