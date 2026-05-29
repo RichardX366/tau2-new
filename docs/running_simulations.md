@@ -33,6 +33,8 @@ tau2 run --domain telecom --agent llm_agent --agent-llm openai/gpt-4.1 \
     --max-concurrency 4 --auto-resume
 ```
 
+The agents are `llm_agent`, `guidance_agent`, `tlm_agent`, and `tlm_guidance_agent`.
+
 See `tau2 run --help` or [CLI Reference](cli-reference.md) for all options.
 
 ---
