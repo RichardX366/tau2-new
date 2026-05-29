@@ -47,7 +47,11 @@ with open(f"data/tau2/domains/{DOMAIN}/tasks.json", "r") as f:
     tasks = loads(f.read())
 
 with open(f"data/simulations/{SIMULATIONS}", "r") as f:
-    simulations = loads(f.read())["simulations"]
+    simulations = [
+        simulation
+        for simulation in loads(f.read())["simulations"]
+        if simulation["trial"] == 0
+    ]
 simulations.sort(key=lambda x: x["task_id"])
 
 
@@ -129,6 +133,8 @@ if __name__ == "__main__":
             for msg in results_dict[task_id]
         ]
         task["initial_state"]["message_history"] = serialized_messages
+        if task_id in modified_tasks:
+            task["modified"] = True
 
     with open(f"data/tau2/domains/{DOMAIN}/tasks.json", "w") as f:
         f.write(dumps(tasks, indent=4))

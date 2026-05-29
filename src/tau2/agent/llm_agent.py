@@ -28,7 +28,7 @@ In each turn you can either:
 - Make a tool call.
 You cannot do both at the same time.
 
-Try to be helpful and always follow the policy. Always make sure you generate valid JSON only.
+Try to be helpful and always follow the policy.
 """.strip()
 
 SYSTEM_PROMPT = """
@@ -94,9 +94,9 @@ class LLMAgent(
         """
         if message_history is None:
             message_history = []
-        assert all(is_valid_agent_history_message(m) for m in message_history), (
-            "Message history must contain only AssistantMessage, UserMessage, or ToolMessage to Agent."
-        )
+        assert all(
+            is_valid_agent_history_message(m) for m in message_history
+        ), "Message history must contain only AssistantMessage, UserMessage, or ToolMessage to Agent."
         return LLMAgentState(
             system_messages=[SystemMessage(role="system", content=self.system_prompt)],
             messages=message_history,
@@ -190,9 +190,9 @@ class LLMGTAgent(
             llm=llm,
             llm_args=llm_args,
         )
-        assert self.check_valid_task(task), (
-            f"Task {task.id} is not valid. Cannot run GT agent."
-        )
+        assert self.check_valid_task(
+            task
+        ), f"Task {task.id} is not valid. Cannot run GT agent."
         self.task = task
         self.provide_function_args = provide_function_args
 
@@ -230,9 +230,9 @@ class LLMGTAgent(
         """
         if message_history is None:
             message_history = []
-        assert all(is_valid_agent_history_message(m) for m in message_history), (
-            "Message history must contain only AssistantMessage, UserMessage, or ToolMessage to Agent."
-        )
+        assert all(
+            is_valid_agent_history_message(m) for m in message_history
+        ), "Message history must contain only AssistantMessage, UserMessage, or ToolMessage to Agent."
         return LLMAgentState(
             system_messages=[SystemMessage(role="system", content=self.system_prompt)],
             messages=message_history,
@@ -347,9 +347,9 @@ class LLMSoloAgent(
             llm=llm,
             llm_args=llm_args,
         )
-        assert self.check_valid_task(task), (
-            f"Task {task.id} is not valid. Cannot run GT agent."
-        )
+        assert self.check_valid_task(
+            task
+        ), f"Task {task.id} is not valid. Cannot run GT agent."
         self.task = task
         self.add_stop_tool()
         self.validate_tools()
@@ -443,9 +443,9 @@ class LLMSoloAgent(
         """
         if message_history is None:
             message_history = []
-        assert all(is_valid_agent_history_message(m) for m in message_history), (
-            "Message history must contain only AssistantMessage, UserMessage, or ToolMessage to Agent."
-        )
+        assert all(
+            is_valid_agent_history_message(m) for m in message_history
+        ), "Message history must contain only AssistantMessage, UserMessage, or ToolMessage to Agent."
         return LLMAgentState(
             system_messages=[SystemMessage(role="system", content=self.system_prompt)],
             messages=message_history,

@@ -53,7 +53,9 @@ simulations.sort(key=lambda x: x["task_id"])
 
 if __name__ == "__main__":
     for task in tasks:
-        del task["initial_state"]["message_history"]
+        task["initial_state"] = None
+        if "modified" in task:
+            del task["modified"]
 
     with open(f"data/tau2/domains/{DOMAIN}/tasks.json", "w") as f:
         f.write(dumps(tasks, indent=4))

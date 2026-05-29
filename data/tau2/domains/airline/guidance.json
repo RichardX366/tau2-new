@@ -1,6 +1,10 @@
 [
   {
     "query": "Does the user explicitly ask about wanting to cancel a reservation?",
-    "guidance": "If the user wants to cancel a reservation, state the exact number of hours between the current date and the booking date. Also search each flight number to ensure none have been flown. If the reservation fails to meet the specific cancellation criteria in the policy, refuse the cancellation. You are allowed to make the necessary changes to a reservation to make it cancellable."
+    "guidance": "If the user wants to cancel a reservation, state the exact number of hours between the current date and the booking date. Also search each flight number to ensure none have been flown. List the specific cancellation criteria in the policy, and if the reservation fails to meet any of them, refuse the cancellation. You are allowed to make the necessary changes to a reservation to make it cancellable, including upgrading to business."
+  },
+  {
+    "query": "Does the agent receive multiple flight search tool calls?",
+    "guidance": "If the agent is tasked with deciding between a bunch of flights to choose based on a factor, such as cheapness or time, specifically list that factor/metric for each flight in text, evaluate which one(s) are best, and then justify this decision."
   }
 ]

@@ -1,10 +1,11 @@
 from asyncio import gather, get_event_loop
 
 import re
+from typing import cast
 from litellm import acompletion
 from openai.types.chat import ChatCompletionMessageParam
 from cleanlab_tlm.utils.chat import form_prompt_string
-from json import dump, load
+from json import dump, dumps, load
 
 from tau2.data_model.message import (
     APICompatibleMessage,
@@ -257,12 +258,22 @@ async def maybe_rewrite_query(
 def consult_ai_guidance(
     query: str,
     messages: list[ChatCompletionMessageParam],
-    isToolCall: bool = False,
 ) -> list[str]:
 
     async def determine_guidance_relevance(guidance: dict) -> bool:
-        if isToolCall:
-            rewritten_query = query
+        if messages[-1]["role"] == "tool":
+            rewritten_query = ""
+            for message in messages[::-1]:
+                if message["role"] == "tool":
+                    content = cast(str, message["content"])
+                    rewritten_query = "Tool:\n" + content + "\n" + rewritten_query
+                else:
+                    tool_calls = message["tool_calls"]  # type: ignore
+                    rewritten_query = (
+                        f"{message['role'].capitalize()}:\n{dumps(tool_calls, indent=2)}\n"
+                        + rewritten_query
+                    )
+                    break
         else:
             rewritten_query = await maybe_rewrite_query(
                 query, guidance["query"], messages
@@ -325,7 +336,6 @@ def get_guidance_message(messages: list[APICompatibleMessage]):
     - guidance: list of relevant guidance statements (strings)
     - guidance_messages: list of SystemMessage objects containing the relevant guidance to be included in the system
     """
-    last_user_message = [m for m in messages if isinstance(m, UserMessage)][-1].content
     last_message = messages[-1].content or ""
 
     previous_guidance: set[str] = {
@@ -335,7 +345,7 @@ def get_guidance_message(messages: list[APICompatibleMessage]):
         for g in m.raw_data.get("guidance", [])
     }
 
-    guidance = consult_ai_guidance(last_message, to_litellm_messages(messages), isToolCall=last_message != last_user_message)  # type: ignore
+    guidance = consult_ai_guidance(last_message, to_litellm_messages(messages))  # type: ignore
 
     total_guidance = set(guidance) | previous_guidance
 
