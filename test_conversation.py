@@ -1167,7 +1167,7 @@ messages = [
 
 tau2_messages = to_tau2_messages([system] + messages)
 
-print(trustworthiness_from_messages(tau2_messages[:-1], tau2_messages[-1], tools, TLM())["confidence_score"])  # type: ignore
+print(trustworthiness_from_messages(tau2_messages[:-1], tau2_messages[-1], tools, TLM())["trustworthiness_score"])  # type: ignore
 exit()
 
 # response = generate(
@@ -1179,4 +1179,4 @@ exit()
 # print(loads(response.content)["message"] if response.content else response.tool_calls)  # type: ignore
 
 # if response.content:
-#     print(trustworthiness_from_messages(tau2_messages, response, tools, TLM())["confidence_score"])  # type: ignore
+#     print(trustworthiness_from_messages(tau2_messages, response, tools, TLM())["trustworthiness_score"])  # type: ignore

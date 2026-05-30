@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from tlm import TLM
-from tlm.config.base import ConfigInput
+from tlm.config.base import BaseConfig
 
 from tau2.agent.base_agent import ValidAgentInputMessage
 from tau2.agent.llm_agent import (
@@ -43,7 +43,7 @@ class TLMGuidanceAgent(LLMAgent):
             tools=tools, domain_policy=domain_policy, llm=llm, llm_args=llm_args
         )
         self.tlm = TLM(
-            config_input=ConfigInput(
+            config=BaseConfig(
                 reasoning_effort="medium",  # type: ignore
             )
         )
@@ -81,7 +81,7 @@ class TLMGuidanceAgent(LLMAgent):
             messages + guidance_message, assistant_message, self.tools, self.tlm
         )
 
-        if trustworthiness["confidence_score"] < 0.75:  # type: ignore
+        if trustworthiness["trustworthiness_score"] < 0.75:  # type: ignore
             fix_messages = get_fix_messages(assistant_message, trustworthiness)
 
             new_assistant_message: AssistantMessage = generate(  # type: ignore
@@ -107,8 +107,8 @@ class TLMGuidanceAgent(LLMAgent):
                 assistant_message,
                 new_assistant_message,
                 rewrite=(
-                    new_trustworthiness["confidence_score"]
-                    > trustworthiness["confidence_score"] + 0.1
+                    new_trustworthiness["trustworthiness_score"]
+                    > trustworthiness["trustworthiness_score"] + 0.1
                 ),
             )
 

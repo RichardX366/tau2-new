@@ -78,7 +78,7 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
             # trustworthiness = trustworthiness_from_messages(
             #     messages[:-1], last_message, tools=ENVIRONMENT.get_tools(), tlm=tlm
             # )
-            # if trustworthiness["confidence_score"] < 0.75:
+            # if trustworthiness["trustworthiness_score"] < 0.75:
             #     return True
 
         return False

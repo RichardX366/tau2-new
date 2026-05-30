@@ -18,7 +18,6 @@ from openai.types.chat import ChatCompletion
 from tau2.environment.tool import Tool
 from tau2.utils.llm_utils import to_litellm_messages
 
-
 TLM_MODEL = "gpt-4.1-mini"
 
 
@@ -150,7 +149,7 @@ If the tool calls are not in this format, they are invalid.
 
     except Exception as e:
         trustworthiness = {
-            "confidence_score": 0.0,
+            "trustworthiness_score": 0.0,
             "explanation": f"Error calculating trustworthiness: {e}",
             "usage": {
                 "model": "gpt-4.1-mini",

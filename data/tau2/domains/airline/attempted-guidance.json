@@ -6,5 +6,9 @@
   {
     "query": "Does the query talk about modifying/upgrading a basic economy reservation?",
     "guidance": "Basic economy reservations can be modified (eg. upgraded), but their flights cannot be changed, at least not before upgrading the reservation."
+  },
+  {
+    "query": "Does the agent receive multiple flight search tool calls?",
+    "guidance": "If the agent is tasked with deciding between a bunch of flights to choose based on a factor, such as cheapness or time, specifically list that factor/metric for each flight in text, evaluate which one(s) are best, and then justify this decision."
   }
 ]
