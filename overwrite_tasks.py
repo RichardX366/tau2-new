@@ -4,7 +4,8 @@ from json import dumps, loads
 from dotenv import load_dotenv
 from openai import OpenAI
 from tlm import TLM
-from tlm.config.base import ConfigInput
+from tlm.config.schema import Config
+from tlm.config.presets import ReasoningEffort
 from src.tau2.utils.guidance import get_guidance_message, load_embeddings
 from src.tau2.utils.trustworthiness import trustworthiness_from_messages
 from tau2.agent.llm_agent import LLMAgent
@@ -13,7 +14,7 @@ from tau2.environment.environment import Environment
 from concurrent.futures import ThreadPoolExecutor
 from threading import local
 
-from tau2.utils.llm_utils import to_tau2_messages
+from tau2.utils.llm_utils import to_litellm_messages, to_tau2_messages
 
 load_dotenv()
 
@@ -32,7 +33,7 @@ def get_event_loop():
 
 
 DOMAIN = "airline"
-SIMULATIONS = f"{DOMAIN}_k1/llm.json"
+SIMULATIONS = f"{DOMAIN}_k4/guidance-1.json"
 ENVIRONMENT_MODULE = importlib.import_module(f"src.tau2.domains.{DOMAIN}.environment")
 ENVIRONMENT: Environment = ENVIRONMENT_MODULE.get_environment()
 AGENT = LLMAgent(
@@ -62,8 +63,8 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
 
     i = 0
     tlm = TLM(
-        config_input=ConfigInput(
-            reasoning_effort="medium",  # type: ignore
+        config=Config(
+            reasoning_effort=ReasoningEffort.MEDIUM,
         )
     )
 
@@ -78,7 +79,7 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
             # trustworthiness = trustworthiness_from_messages(
             #     messages[:-1], last_message, tools=ENVIRONMENT.get_tools(), tlm=tlm
             # )
-            # if trustworthiness["trustworthiness_score"] < 0.75:
+            # if trustworthiness["confidence_score"] < 0.75:
             #     return True
 
         return False
@@ -86,12 +87,7 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
     while i < len(allMessages):
         if determine_modification(allMessages[: i + 1]):
             print(f"Modifying task {task_id} at message index {i}")
-            i -= 1
-            while i >= 0:
-                if allMessages[i].role in ["user", "assistant"]:
-                    break
-                i -= 1
-            return (task_id, allMessages[: i + 1], True)
+            return (task_id, allMessages[:i], True)
 
         i += 1
 
@@ -108,6 +104,8 @@ if __name__ == "__main__":
         futures = {}
         for simulation in simulations:
             task_id = simulation["task_id"]
+            # if task_id != "35":
+            #     continue
             future = executor.submit(
                 worker, to_tau2_messages(simulation["messages"]), task_id  # type: ignore
             )
@@ -135,6 +133,8 @@ if __name__ == "__main__":
         task["initial_state"]["message_history"] = serialized_messages
         if task_id in modified_tasks:
             task["modified"] = True
+        else:
+            task["modified"] = False
 
     with open(f"data/tau2/domains/{DOMAIN}/tasks.json", "w") as f:
         f.write(dumps(tasks, indent=4))

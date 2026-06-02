@@ -262,6 +262,8 @@ def consult_ai_guidance(
 
     async def determine_guidance_relevance(guidance: dict) -> bool:
         if messages[-1]["role"] == "tool":
+            if guidance["type"] != "tool":
+                return False
             rewritten_query = ""
             for message in messages[::-1]:
                 if message["role"] == "tool":
@@ -275,6 +277,8 @@ def consult_ai_guidance(
                     )
                     break
         else:
+            if guidance["type"] == "tool":
+                return False
             rewritten_query = await maybe_rewrite_query(
                 query, guidance["query"], messages
             )
