@@ -3,17 +3,10 @@ import asyncio
 from json import dumps, loads
 from dotenv import load_dotenv
 from openai import OpenAI
-from tlm import TLM
-from tlm.config.base import ConfigInput
-from src.tau2.utils.guidance import get_guidance_message
-from src.tau2.utils.trustworthiness import trustworthiness_from_messages
 from tau2.agent.llm_agent import LLMAgent
-from tau2.data_model.message import APICompatibleMessage, SystemMessage
+from tau2.data_model.message import SystemMessage
 from tau2.environment.environment import Environment
-from concurrent.futures import ThreadPoolExecutor
 from threading import local
-
-from tau2.utils.llm_utils import to_tau2_messages
 
 load_dotenv()
 

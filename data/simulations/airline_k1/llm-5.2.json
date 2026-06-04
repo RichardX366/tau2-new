@@ -71869,5 +71869,6 @@
       "effect_timeline": null
     }
   ],
-  "simulation_index": null
+  "simulation_index": null,
+  "path": "/home/richard/Code/CleanLab/tau2-new/data/simulations/airline_k1/llm-5.2.json"
 }
