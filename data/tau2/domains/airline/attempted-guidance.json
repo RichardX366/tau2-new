@@ -16,5 +16,15 @@
     "query": "Is the agent tasked with deciding between a bunch of flights to choose based on a factor?",
     "guidance": "If the agent is tasked with deciding between a bunch of flights to choose based on a factor, such as cheapness or time, specifically list that factor/metric for each flight in text, evaluate which one(s) are best after listing all the metrics, and then justify this decision. If you need too calculate this metric, state the calculation equation before the answer/final metric. Also, remember you can only use 1 certificate, 1 credit cards, and 3 gift cards for payment for any reservation, and don't say the exact names of the payment methods. If the user must pick a specific certificate or gift card, just list them by money value. Basic economy reservations also cannot have their flights changed.",
     "type": "text"
+  },
+  {
+    "query": "Is the agent tasked with deciding between a bunch of flights to choose based on a factor?",
+    "guidance": "If the agent is tasked with deciding between a bunch of flights to choose based on a factor, such as cheapness or time, specifically list that factor/metric for each flight in text, evaluate which one(s) are best after listing all the metrics, and then justify this decision. If you need too calculate this metric, state the calculation equation before the answer/final metric.",
+    "type": "text"
+  },
+  {
+    "query": "Does the user explicitly ask about wanting to book or modify a reservation?",
+    "guidance": "When booking or modifying a reservation, you can only use 1 certificate, 1 credit cards, and 3 gift cards for payment for any reservation. Don't say the exact names of the payment methods. If the user must pick a specific certificate or gift card, just list them by money value. Do not ask the user for their DOB if you can get it from their profile. Basic economy reservations also cannot have their flights changed. Also, whenever calculating the number of free bags, state the exact calculation, and if upgrading in the same tool call, the number of free bags depends on the NEW cabin instead of the old one.",
+    "type": "text"
   }
 ]

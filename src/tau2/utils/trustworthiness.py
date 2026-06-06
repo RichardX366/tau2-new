@@ -18,7 +18,7 @@ from openai.types.chat import ChatCompletion
 from tau2.environment.tool import Tool
 from tau2.utils.llm_utils import to_litellm_messages
 
-TLM_MODEL = "gpt-4.1-mini"
+TLM_MODEL = "gpt-5-mini"
 
 
 def message_to_chat_completion(
@@ -135,7 +135,7 @@ If the tool calls are not in this format, they are invalid.
         trustworthiness = tlm.score(
             messages=openai_messages,
             response={"chat_completion": {"choices": [{"message": openai_response}]}},
-            model="gpt-4.1-mini",
+            model=TLM_MODEL,
         )
         prompt_cost, completion_cost = cost_per_token(
             TLM_MODEL,
@@ -152,7 +152,7 @@ If the tool calls are not in this format, they are invalid.
             "trustworthiness_score": 0.0,
             "explanation": f"Error calculating trustworthiness: {e}",
             "usage": {
-                "model": "gpt-4.1-mini",
+                "model": TLM_MODEL,
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
                 "total_tokens": 0,

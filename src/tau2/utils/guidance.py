@@ -200,7 +200,7 @@ async def maybe_rewrite_query(
     messages_str = format_messages_to_string(messages, query)
 
     response = await acompletion(
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         messages=[
             {
                 "role": "user",
@@ -284,7 +284,7 @@ def consult_ai_guidance(
             )
 
         determination_response = await acompletion(
-            model="gpt-4.1-mini",
+            model="gpt-5-mini",
             messages=[
                 {
                     "role": "system",
@@ -317,7 +317,7 @@ Question: {guidance["query"]}""",
     return guidance_returned
 
 
-def load_embeddings(domain: str):
+def load_guidance(domain: str):
     global all_guidance
 
     if all_guidance is not None:

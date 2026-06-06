@@ -7,8 +7,7 @@ from openai import OpenAI
 from tlm import TLM
 from tlm.config.schema import Config
 from tlm.config.presets import ReasoningEffort
-from src.tau2.utils.guidance import get_guidance_message, load_embeddings
-from src.tau2.utils.trustworthiness import trustworthiness_from_messages
+from src.tau2.utils.guidance import get_guidance_message, load_guidance
 from tau2.agent.llm_agent import LLMAgent
 from tau2.config import DEFAULT_MAX_STEPS
 from tau2.data_model.message import APICompatibleMessage, SystemMessage
@@ -16,10 +15,8 @@ from tau2.data_model.simulation import Results, TextRunConfig
 from tau2.environment.environment import Environment
 from concurrent.futures import ThreadPoolExecutor
 from threading import local
-
-from tau2.run import run_tasks
 from tau2.runner.batch import run_domain
-from tau2.utils.llm_utils import to_litellm_messages, to_tau2_messages
+from tau2.utils.llm_utils import to_tau2_messages
 
 load_dotenv()
 
@@ -27,6 +24,15 @@ client = OpenAI()
 
 # Thread-local storage for event loops
 _thread_local = local()
+
+# Constants
+
+DOMAIN = "airline"
+SIMULATIONS = f"{DOMAIN}_k4/guidance-1.json"
+SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-2.json"
+ALREADY_GUIDANCE = 1
+
+# Code
 
 
 def get_event_loop():
@@ -37,8 +43,10 @@ def get_event_loop():
     return _thread_local.loop
 
 
-DOMAIN = "airline"
-SIMULATIONS = f"{DOMAIN}_k4/guidance-1.json"
+load_guidance(DOMAIN)
+
+from src.tau2.utils.guidance import all_guidance
+
 ENVIRONMENT_MODULE = importlib.import_module(f"src.tau2.domains.{DOMAIN}.environment")
 ENVIRONMENT: Environment = ENVIRONMENT_MODULE.get_environment()
 AGENT = LLMAgent(
@@ -48,6 +56,7 @@ AGENT = LLMAgent(
 )
 SYSTEM_MESSAGE = AGENT.system_prompt
 SYSTEM_MESSAGES = [SystemMessage(content=SYSTEM_MESSAGE, role="system")]
+USED_GUIDANCE = all_guidance[:ALREADY_GUIDANCE]
 
 config = TextRunConfig(
     domain=DOMAIN,
@@ -64,7 +73,7 @@ config = TextRunConfig(
     max_errors=10,
     timeout=None,
     save_to=None,
-    max_concurrency=3,
+    max_concurrency=10,
     seed=300,
     log_level="ERROR",
     verbose_logs=False,
@@ -110,6 +119,9 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
 
         if last_message.role == "assistant" and len(messages) > 1:
             guidance, guidance_message = get_guidance_message(messages[:-1])
+            for used in USED_GUIDANCE:
+                if used["guidance"] in guidance:
+                    guidance.remove(used["guidance"])
             if guidance:
                 return True
 
@@ -137,7 +149,7 @@ def modify_tasks(trial: int):
         simulation for simulation in all_simulations if simulation["trial"] == trial
     ]
     results_dict = {}
-    modified_tasks: list[int] = []
+    modified_tasks = []
 
     print(f"Processing trial {trial} with {len(simulations)} simulations...")
 
@@ -154,7 +166,7 @@ def modify_tasks(trial: int):
             task_id, messages, was_modified = future.result()
             results_dict[task_id] = messages
             if was_modified:
-                modified_tasks.append(int(task_id))
+                modified_tasks.append(task_id)
 
     for task_id in results_dict.keys():
         task = tasks[int(task_id)]
@@ -182,7 +194,6 @@ def modify_tasks(trial: int):
 
 
 if __name__ == "__main__":
-    load_embeddings(DOMAIN)
     results: list[Results] = []
 
     for trial in range(trials):
@@ -192,6 +203,7 @@ if __name__ == "__main__":
             if sim.info is None:
                 sim.info = {}
             sim.info["modified"] = sim.task_id in modified
+            sim.trial = trial
         results += [result]
 
     result = Results(
@@ -201,8 +213,15 @@ if __name__ == "__main__":
         timestamp=results[0].timestamp,
         simulations=[sim for r in results for sim in r.simulations],
     )
+    result.info.num_trials = trials
 
-    result.save(Path(f"data/tau2/simulations/{DOMAIN}_k4/guidance-1_modified.json"))
+    result.save(Path(SAVE_TO))
+
+    with open(SAVE_TO, "r") as f:
+        json = loads(f.read())
+        json["path"] = str(Path(SAVE_TO).absolute())
+    with open(SAVE_TO, "w") as f:
+        f.write(dumps(json, indent=2))
 
     for task in tasks:
         if "message_history" in task["initial_state"]:

@@ -34,7 +34,7 @@ from tau2.user.user_simulator_base import (
     UserError,
     is_valid_user_history_message,
 )
-from tau2.utils.guidance import load_embeddings
+from tau2.utils.guidance import load_guidance
 from tau2.utils.llm_utils import get_cost
 from tau2.utils.utils import format_time, get_now
 
@@ -444,7 +444,7 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
             timeout=timeout,
         )
 
-        load_embeddings(domain)  # Ensure guidance embeddings are loaded for the domain
+        load_guidance(domain)  # Ensure guidance embeddings are loaded for the domain
 
         # Half-duplex specific attributes
         self.mode = CommunicationMode.HALF_DUPLEX
@@ -514,9 +514,9 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
                 isinstance(self.agent, LLMSoloAgent)
                 or self.agent.__class__.__name__ == "GymAgent"
             ), "Agent must be a LLMSoloAgent or GymAgent in solo mode"
-            assert isinstance(self.user, DummyUser), (
-                "User must be a DummyUser in solo mode"
-            )
+            assert isinstance(
+                self.user, DummyUser
+            ), "User must be a DummyUser in solo mode"
 
         # Initialize Environment state
         self._initialize_environment(
@@ -661,7 +661,9 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
                     self.to_role = Role.ENV
                     self.done = self.agent.is_stop(first_message)
                     if self.done:
-                        self.to_role = Role.USER  # FIXIT: For now, we assume last message cannot be to the environment
+                        self.to_role = (
+                            Role.USER
+                        )  # FIXIT: For now, we assume last message cannot be to the environment
                         self.termination_reason = TerminationReason.AGENT_STOP
 
         if self.validate_communication:
@@ -886,9 +888,9 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
             if not self.message.is_tool_call():
                 raise ValueError("Agent or User should send tool call to environment")
             tool_results = self._execute_tool_calls(self.message.tool_calls)
-            assert len(self.message.tool_calls) == len(tool_results), (
-                "Number of tool calls and tool messages should be the same"
-            )
+            assert len(self.message.tool_calls) == len(
+                tool_results
+            ), "Number of tool calls and tool messages should be the same"
             self.trajectory.extend(tool_results)
             self.message = self._wrap_tool_results(tool_results)
             self.to_role = self.from_role
