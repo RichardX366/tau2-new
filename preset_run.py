@@ -27,10 +27,10 @@ _thread_local = local()
 
 # Constants
 
-DOMAIN = "airline"
-SIMULATIONS = f"{DOMAIN}_k4/guidance-1.json"
-SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-2.json"
-ALREADY_GUIDANCE = 1
+DOMAIN = "retail"
+SIMULATIONS = f"{DOMAIN}_k4/llm.json"
+SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-1.json"
+ALREADY_GUIDANCE = 0
 
 # Code
 
