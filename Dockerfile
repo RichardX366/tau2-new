@@ -38,6 +38,7 @@ RUN apt-get update && \
     apt-get install -y \
     libasound2 \
     alsa-utils \
+    git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -58,4 +59,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 # RUN /opt/venv/bin/python -m pip uninstall -y pip setuptools wheel
 
 # Default command
-CMD ["ttyd", "bash"]
+CMD ["ttyd", "--writable", "bash"]
