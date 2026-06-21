@@ -39,12 +39,10 @@ RUN apt-get update && \
     libasound2 \
     alsa-utils \
     libc6 \
-    libwebsockets16 \
-    libjson-c5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -L -o /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 && \
+RUN curl -L -o /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.arm64 && \
     chmod a+x /usr/local/bin/ttyd
 
 # Copy the virtual environment from the builder stage
