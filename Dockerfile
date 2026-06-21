@@ -38,6 +38,7 @@ RUN apt-get update && \
     apt-get install -y \
     libasound2 \
     alsa-utils \
+    ttyd \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the virtual environment from the builder stage
@@ -54,4 +55,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 # RUN /opt/venv/bin/python -m pip uninstall -y pip setuptools wheel
 
 # Default command
-CMD ["python"]
+CMD ["ttyd", "bash"]
