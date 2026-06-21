@@ -28,17 +28,20 @@ jobs:
           username: admin
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push
+      - name: Build
         id: docker_build
         uses: docker/build-push-action@v6
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
-          push: true
+          load: true
           tags: registry.richardxiong.com/tau2-bench:latest
           platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Push
+        run: docker push registry.richardxiong.com/tau2-bench:latest
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
