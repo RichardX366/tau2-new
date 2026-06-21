@@ -14,9 +14,10 @@ def main() -> None:
         for json_path in sorted(path.glob("*.json"), key=lambda p: p.name):
             with json_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-            if "path" in data and data["path"] == str(json_path.absolute()):
+            p = "../tau2-new" + str(json_path.absolute()).split("/tau2-new")[1]
+            if "path" in data and data["path"] == p:
                 continue  # Skip if path is already correct
-            data["path"] = str(json_path.absolute())
+            data["path"] = p
             with json_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
                 f.write("\n")

@@ -63596,5 +63596,5 @@
       "effect_timeline": null
     }
   ],
-  "path": "/home/richard/Code/CleanLab/tau2-new/data/simulations/airline_k1/llm-alt.json"
+  "path": "../tau2-new/data/simulations/airline_k1/llm-alt.json"
 }

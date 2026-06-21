@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
     with open(SAVE_TO, "r") as f:
         json = loads(f.read())
-        json["path"] = str(Path(SAVE_TO).absolute())
+        json["path"] = str("../tau2-new/" + SAVE_TO)
     with open(SAVE_TO, "w") as f:
         f.write(dumps(json, indent=2))
 

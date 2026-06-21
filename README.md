@@ -32,7 +32,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 > **Backward compatibility note**: If you are evaluating an agent (not training), use the `base` task split to evaluate on the complete task set that matches the original τ-bench structure. This is the default.
 
-> **Upgrading from $\tau^2$-bench?** Installation now uses `uv` instead of `pip install -e .`, and Python `>=3.12, <3.14` is required (was `>=3.10`). Some internal APIs have been refactored — see [CHANGELOG.md](CHANGELOG.md) for details.
+> **Upgrading from $\tau^2$-bench?** Installation now uses `uv` instead of `pip install -e .[all]`, and Python `>=3.12, <3.14` is required (was `>=3.10`). Some internal APIs have been refactored — see [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 

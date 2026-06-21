@@ -34,6 +34,7 @@ dependencies = [
     "requests>=2.31.0",
     "numpy>=1.24.0",
     "httpx>=0.24.0",
+    "cleanlab_tlm>=1.1.39"
 ]
 
 [project.optional-dependencies]

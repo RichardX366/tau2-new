@@ -247364,5 +247364,5 @@
     }
   ],
   "simulation_index": null,
-  "path": "/home/richard/Code/CleanLab/tau2-new/data/simulations/airline_k4_old/llm.json"
+  "path": "../tau2-new/data/simulations/airline_k4_old/llm.json"
 }

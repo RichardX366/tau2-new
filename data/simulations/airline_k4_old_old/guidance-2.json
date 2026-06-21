@@ -332477,5 +332477,5 @@
     }
   ],
   "simulation_index": null,
-  "path": "/home/richard/Code/CleanLab/tau2-new/data/simulations/airline_k4_old_old/guidance-2.json"
+  "path": "../tau2-new/data/simulations/airline_k4_old_old/guidance-2.json"
 }

@@ -1,7 +1,7 @@
 [
   {
     "query": "Does the user explicitly ask to exchange or change an item in an order?",
-    "guidance": "If the user wants you to exchange an item in an order, you must look up the product details with the product ID, and then list out all the potential options for the user. If they ask to pick one by a certain metric, such as cost, you must list that metric for each one, and ask them to decide which one they want. If items are not available, you don't need to list the metric for those, just tell the user that they are unavailable.",
+    "guidance": "If the user wants you to exchange an item in an order, you must look up the product details with the product ID. Then, you must cite the exact criteria the user specified for their exchange, and then list out all the potential options that fit the criteria for the user (eg. items in an order), omitting the ones that don't fit. If they ask to pick one by a certain metric, such as cost, you must list that metric for each one, and ask them to decide which one they want. If items are not available, just omit them. Never make the user any suggestions on what to do and allow them to lead the conversation. You are to refer to items using their attributes rather than their IDs when talking to the user.",
     "type": "text"
   }
 ]
