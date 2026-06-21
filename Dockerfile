@@ -34,14 +34,18 @@ COPY ./litellm_patch.py /opt/venv/lib/python3.12/site-packages/litellm/litellm_c
 FROM python:3.12-slim
 
 # Install ONLY runtime dependencies (no -dev packages, no compilers)
-RUN wget -qO /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 && \
-    chmod a+x /usr/local/bin/ttyd
-
 RUN apt-get update && \
     apt-get install -y \
     libasound2 \
     alsa-utils \
+    libc6 \
+    libwebsockets16 \
+    libjson-c5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -L -o /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 && \
+    chmod a+x /usr/local/bin/ttyd
 
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
