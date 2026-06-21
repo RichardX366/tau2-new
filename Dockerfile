@@ -10,7 +10,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone repository
-RUN git clone https://github.com/RichardX366/tau2-new.git /app
+RUN git clone --depth 1 https://github.com/RichardX366/tau2-new.git /app
 WORKDIR /app
 
 # Install Python dependencies with caching
