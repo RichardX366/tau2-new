@@ -39,8 +39,9 @@ RUN apt-get update && \
     libasound2 \
     alsa-utils \
     git \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    curl
+
+RUN git config --global credential.helper store
 
 RUN curl -L -o /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.aarch64 && \
     chmod a+x /usr/local/bin/ttyd
