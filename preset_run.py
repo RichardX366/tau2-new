@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import local
 from tau2.runner.batch import run_domain
 from tau2.utils.llm_utils import to_tau2_messages
+from os import remove, removedirs
 
 load_dotenv()
 
@@ -28,9 +29,10 @@ _thread_local = local()
 # Constants
 
 DOMAIN = "retail"
-SIMULATIONS = f"{DOMAIN}_k4/llm.json"
-SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-1.json"
 ALREADY_GUIDANCE = 0
+
+SIMULATIONS = f"{DOMAIN}_k4/guidance-{ALREADY_GUIDANCE}.json"
+SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-{ALREADY_GUIDANCE + 1}.json"
 
 # Code
 
@@ -72,7 +74,7 @@ config = TextRunConfig(
     num_trials=1,
     max_errors=10,
     timeout=None,
-    save_to=None,
+    save_to="temp",
     max_concurrency=10,
     seed=300,
     log_level="ERROR",
@@ -199,6 +201,8 @@ if __name__ == "__main__":
     for trial in range(trials):
         modified = modify_tasks(trial)
         result = run_domain(config)
+        remove("data/simulations/temp/results.json")
+        removedirs("data/simulations/temp")
         for sim in result.simulations:
             if sim.info is None:
                 sim.info = {}
