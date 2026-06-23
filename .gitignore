@@ -224,3 +224,6 @@ data/simulations/.credentials/
 
 # Cursor IDE
 .cursor/
+
+.gitconfig
+.git-credentials
