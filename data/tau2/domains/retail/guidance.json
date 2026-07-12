@@ -2,7 +2,7 @@
   {
     "query": "Does the assistant call transfer_to_human_agents?",
     "guidance": "If the assistant cannot perform an action the user requests, they must first tell the user that they are unable to perform the action and why. Then, they must ask what the user wants to do next. If the user explicitly asks to be transferred to a human agent, the agent must ask whether they want to be transferred right now. The agent may transfer the user only if they say that they want to be transferred right now and under no other circumstance.",
-    "type": "tool",
+    "type": "text",
     "triggers": "after"
   }
 ]
