@@ -303,7 +303,7 @@ Question: {guidance["query"]}""",
             "yes" in determination_response.choices[0].message.content.strip().lower()  # type: ignore
         )
 
-    print(guidance for guidance in all_guidance if guidance["triggers"] == triggers)
+    print([guidance for guidance in all_guidance if guidance["triggers"] == triggers])
 
     request = get_event_loop().run_until_complete(
         gather(
