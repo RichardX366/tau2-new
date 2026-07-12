@@ -285,11 +285,16 @@ def consult_ai_guidance(
                     messages[-1]["content"] or "", guidance["query"], messages  # type: ignore
                 )
         else:
-            rewritten_query: str = messages[-1].get("content", "")  # type: ignore
-            if messages[-1].get("tool_calls", None):
-                if rewritten_query:
-                    rewritten_query += "\n\n"
-                rewritten_query += dumps(messages[-1]["tool_calls"], indent=2)  # type: ignore
+            if guidance["type"] == "tool":
+                if not messages[-1].get("tool_calls", []):
+                    return False
+                rewritten_query = dumps(messages[-1]["tool_calls"], indent=2)  # type: ignore
+            else:
+                if not messages[-1]["content"]:  # type: ignore
+                    return False
+                rewritten_query = await maybe_rewrite_query(
+                    messages[-1]["content"], guidance["query"], messages  # type: ignore
+                )
 
         determination_response = await acompletion(
             model="gpt-5-mini",
