@@ -50,7 +50,6 @@ class GuidanceAgent(LLMAgent):
         )
 
         if post_guidance:
-            print(post_guidance_message)
             assistant_message = generate(  # type: ignore
                 model=self.llm,
                 tools=self.tools,

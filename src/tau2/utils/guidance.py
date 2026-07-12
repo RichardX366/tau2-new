@@ -427,12 +427,14 @@ def get_post_guidance_message(messages: list[APICompatibleMessage]):
                 content=(
                     f"""There may have been some issues with your previous message. You must rewrite it to address the following guidance. You must follow the rules that apply. If they don't apply, you can ignore them. If none apply or no changes are needed, just repeat your previous message verbatim:
 {"\n".join([f"- {g}" for g in guidance])}"""
-                    + f"""
+                    + (
+                        f"""
 
 Be sure that if you rewrite your message, you still adhere to the following guidance as well. If they don't apply, you can ignore them:
 {"\n".join([f"- {g}" for g in previous_guidance])}"""
-                    if previous_guidance
-                    else ""
+                        if previous_guidance
+                        else ""
+                    )
                 ),
             )
         ]
