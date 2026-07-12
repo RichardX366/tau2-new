@@ -262,30 +262,34 @@ def consult_ai_guidance(
 ) -> list[str]:
 
     async def determine_guidance_relevance(guidance: dict) -> bool:
-        if messages[-1]["role"] == "tool":
-            if guidance["type"] != "tool":
-                return False
-            rewritten_query = ""
-            for message in messages[::-1]:
-                if message["role"] == "tool":
-                    content = cast(str, message["content"])
-                    rewritten_query = "Tool:\n" + content + "\n" + rewritten_query
-                else:
-                    tool_calls = message["tool_calls"]  # type: ignore
-                    rewritten_query = (
-                        f"{message['role'].capitalize()}:\n{dumps(tool_calls, indent=2)}\n"
-                        + rewritten_query
-                    )
-                    break
-        else:
-            if guidance["type"] == "tool":
-                return False
-            try:
+        if guidance["triggers"] == "before":
+            if messages[-1]["role"] == "tool":
+                if guidance["type"] != "tool":
+                    return False
+                rewritten_query = ""
+                for message in messages[::-1]:
+                    if message["role"] == "tool":
+                        content = cast(str, message["content"])
+                        rewritten_query = "Tool:\n" + content + "\n" + rewritten_query
+                    else:
+                        tool_calls = message["tool_calls"]  # type: ignore
+                        rewritten_query = (
+                            f"{message['role'].capitalize()}:\n{dumps(tool_calls, indent=2)}\n"
+                            + rewritten_query
+                        )
+                        break
+            else:
+                if guidance["type"] == "tool":
+                    return False
                 rewritten_query = await maybe_rewrite_query(
-                    messages[-1].content or "", guidance["query"], messages  # type: ignore
+                    messages[-1]["content"] or "", guidance["query"], messages  # type: ignore
                 )
-            except:
-                print(messages[-1])
+        else:
+            rewritten_query: str = messages[-1].get("content", "")  # type: ignore
+            if messages[-1].get("tool_calls", None):
+                if rewritten_query:
+                    rewritten_query += "\n\n"
+                rewritten_query += dumps(messages[-1]["tool_calls"], indent=2)  # type: ignore
 
         determination_response = await acompletion(
             model="gpt-5-mini",
