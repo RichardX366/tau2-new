@@ -13,7 +13,7 @@ from tau2.data_model.message import (
     MultiToolMessage,
 )
 from tau2.environment.tool import Tool
-from tau2.utils.guidance import get_guidance_message
+from tau2.utils.guidance import get_pre_guidance_message
 from tau2.utils.llm_utils import generate
 from tau2.utils.trustworthiness import (
     determine_rewrite,
@@ -61,7 +61,7 @@ class TLMGuidanceAgent(LLMAgent):
 
         messages = state.system_messages + state.messages
 
-        guidance, guidance_message = get_guidance_message(messages)
+        guidance, guidance_message = get_pre_guidance_message(messages)
 
         assistant_message: AssistantMessage = generate(  # type: ignore
             model=self.llm,

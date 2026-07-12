@@ -1,0 +1,8 @@
+[
+  {
+    "query": "Does the user explicitly ask to exchange or change an item in an order?",
+    "guidance": "If the user wants you to exchange an item in an order, you must look up the product details with the product ID. Then, you must cite the exact criteria the user specified for their exchange, and then list out all the potential options that fit the criteria for the user (eg. items in an order), omitting the ones that don't fit. If they ask to pick one by a certain metric, such as cost, you must list that metric for each one, and ask them to decide which one they want. Do not list cost unless they tell you to or it is a part of the metric they specify. If items are not available, just omit them. Never make the user any suggestions on what to do and allow them to lead the conversation. If they ask for information you are unable to provide, just tell them that you are unable to provide that information rather than transferring to an agent, and continue with their other requests. You are to refer to items using their attributes and rather than their IDs when talking to the user. You are to refer to all payment methods apart from gift card and certificates by their generalized name rather than id (eg. PayPal instead of paypal_123456). Whenever you ask for confirmation, right before, you must tell the user that the operation will not be performed and their goal will not be completed until you send a message confirming that you have completed the operation.",
+    "type": "text",
+    "triggers": "before"
+  }
+]

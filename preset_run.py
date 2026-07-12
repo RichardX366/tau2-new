@@ -7,7 +7,7 @@ from openai import OpenAI
 from tlm import TLM
 from tlm.config.schema import Config
 from tlm.config.presets import ReasoningEffort
-from src.tau2.utils.guidance import get_guidance_message, load_guidance
+from src.tau2.utils.guidance import get_pre_guidance_message, load_guidance
 from tau2.agent.llm_agent import LLMAgent
 from tau2.config import DEFAULT_MAX_STEPS
 from tau2.data_model.message import APICompatibleMessage, SystemMessage
@@ -120,7 +120,7 @@ def worker(allMessages: list[APICompatibleMessage], task_id: str):
         last_message = messages[-1]
 
         if last_message.role == "assistant" and len(messages) > 1:
-            guidance, guidance_message = get_guidance_message(messages[:-1])
+            guidance, guidance_message = get_pre_guidance_message(messages[:-1])
             for used in USED_GUIDANCE:
                 if used["guidance"] in guidance:
                     guidance.remove(used["guidance"])

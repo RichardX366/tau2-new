@@ -11,6 +11,7 @@ from tau2.data_model.message import (
     APICompatibleMessage,
     AssistantMessage,
     SystemMessage,
+    ToolMessage,
     UserMessage,
 )
 from tau2.utils.llm_utils import generate, to_litellm_messages
@@ -256,8 +257,8 @@ async def maybe_rewrite_query(
 
 
 def consult_ai_guidance(
-    query: str,
     messages: list[ChatCompletionMessageParam],
+    triggers="before",
 ) -> list[str]:
 
     async def determine_guidance_relevance(guidance: dict) -> bool:
@@ -280,7 +281,7 @@ def consult_ai_guidance(
             if guidance["type"] == "tool":
                 return False
             rewritten_query = await maybe_rewrite_query(
-                query, guidance["query"], messages
+                messages[-1].content or "", guidance["query"], messages  # type: ignore
             )
 
         determination_response = await acompletion(
@@ -303,7 +304,13 @@ Question: {guidance["query"]}""",
         )
 
     request = get_event_loop().run_until_complete(
-        gather(*[determine_guidance_relevance(guidance) for guidance in all_guidance])
+        gather(
+            *[
+                determine_guidance_relevance(guidance)
+                for guidance in all_guidance
+                if guidance["triggers"] == triggers
+            ]
+        )
     )
 
     guidance_returned = [
@@ -332,7 +339,22 @@ def load_guidance(domain: str):
         all_guidance = []
 
 
-def get_guidance_message(messages: list[APICompatibleMessage]):
+def get_cancel_tool_messages(assistant_message: AssistantMessage) -> list[ToolMessage]:
+    canceled_tool_messages = []
+    if assistant_message.tool_calls:
+        canceled_tool_messages = [
+            ToolMessage(
+                id=tool_call.id,
+                role="tool",
+                content="Tool Call Canceled",
+                requestor="assistant",
+            )
+            for tool_call in assistant_message.tool_calls
+        ]
+    return canceled_tool_messages
+
+
+def get_pre_guidance_message(messages: list[APICompatibleMessage]):
     """
     Given the message history, determine which guidance statements are relevant and should be included in the system prompt, and return those along with the original messages.
 
@@ -340,7 +362,6 @@ def get_guidance_message(messages: list[APICompatibleMessage]):
     - guidance: list of relevant guidance statements (strings)
     - guidance_messages: list of SystemMessage objects containing the relevant guidance to be included in the system
     """
-    last_message = messages[-1].content or ""
 
     previous_guidance: set[str] = {
         g
@@ -349,7 +370,7 @@ def get_guidance_message(messages: list[APICompatibleMessage]):
         for g in m.raw_data.get("guidance", [])
     }
 
-    guidance = consult_ai_guidance(last_message, to_litellm_messages(messages))  # type: ignore
+    guidance = consult_ai_guidance(to_litellm_messages(messages))  # type: ignore
 
     total_guidance = set(guidance) | previous_guidance
 
@@ -363,4 +384,44 @@ def get_guidance_message(messages: list[APICompatibleMessage]):
         ]
         if total_guidance
         else []
+    )
+
+
+def get_post_guidance_message(messages: list[APICompatibleMessage]):
+    """
+    Given the message history, determine which guidance statements are relevant and should be included in the system prompt, and return those along with the original messages.
+
+    Returns:
+    - guidance: list of relevant guidance statements (strings)
+    - guidance_messages: list of SystemMessage objects containing the relevant guidance to be included in the system
+    """
+
+    previous_guidance: set[str] = {
+        g
+        for m in messages
+        if isinstance(m, AssistantMessage) and m.raw_data
+        for g in m.raw_data.get("guidance", [])
+    }
+
+    guidance = consult_ai_guidance(to_litellm_messages(messages), triggers="after")  # type: ignore
+
+    if not guidance:
+        return [], []
+
+    return guidance, (
+        [
+            SystemMessage(
+                role="system",
+                content=(
+                    f"""There may have been some issues with your previous message. You must rewrite it to address the following guidance. You must follow the rules that apply. If they don't apply, you can ignore them. If none apply or no changes are needed, just repeat your previous message verbatim:
+{"\n".join([f"- {g}" for g in guidance])}"""
+                    + f"""
+
+Be sure that if you rewrite your message, you still adhere to the following guidance as well. If they don't apply, you can ignore them:
+{"\n".join([f"- {g}" for g in previous_guidance])}"""
+                    if previous_guidance
+                    else ""
+                ),
+            )
+        ]
     )

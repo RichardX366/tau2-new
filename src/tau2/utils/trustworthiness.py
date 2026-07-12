@@ -16,6 +16,7 @@ from tau2.data_model.message import (
 from openai.types.chat import ChatCompletion
 
 from tau2.environment.tool import Tool
+from tau2.utils.guidance import get_cancel_tool_messages
 from tau2.utils.llm_utils import to_litellm_messages
 
 TLM_MODEL = "gpt-5-mini"
@@ -165,25 +166,13 @@ If the tool calls are not in this format, they are invalid.
 def get_fix_messages(
     assistant_message: AssistantMessage, trustworthiness: InferenceResult
 ) -> list[APICompatibleMessage]:
-    canceled_tool_messages = []
-    if assistant_message.tool_calls:
-        canceled_tool_messages = [
-            ToolMessage(
-                id=tool_call.id,
-                role="tool",
-                content="Tool Call Canceled",
-                requestor="assistant",
-            )
-            for tool_call in assistant_message.tool_calls
-        ]
-
     fix_request_message = SystemMessage(
         role="system",
         content=f"""Your last response was not trustworthy. Rewrite your response to be more trustworthy.
 Feedback on previous response:
 {trustworthiness["explanation"]}""",
     )
-    return canceled_tool_messages + [fix_request_message]  # type: ignore
+    return get_cancel_tool_messages(assistant_message) + [fix_request_message]  # type: ignore
 
 
 def determine_rewrite(

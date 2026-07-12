@@ -7,7 +7,11 @@ from tau2.data_model.message import (
     AssistantMessage,
     MultiToolMessage,
 )
-from tau2.utils.guidance import get_guidance_message
+from tau2.utils.guidance import (
+    get_cancel_tool_messages,
+    get_post_guidance_message,
+    get_pre_guidance_message,
+)
 from tau2.utils.llm_utils import generate
 
 
@@ -29,7 +33,7 @@ class GuidanceAgent(LLMAgent):
 
         messages = state.system_messages + state.messages
 
-        guidance, guidance_message = get_guidance_message(messages)
+        guidance, guidance_message = get_pre_guidance_message(messages)
 
         assistant_message: AssistantMessage = generate(  # type: ignore
             model=self.llm,
@@ -40,6 +44,20 @@ class GuidanceAgent(LLMAgent):
         )
 
         assistant_message.raw_data["guidance"] = guidance  # type: ignore
+
+        post_guidance, post_guidance_message = get_post_guidance_message(
+            messages + [assistant_message]
+        )
+
+        if post_guidance:
+            assistant_message = generate(  # type: ignore
+                model=self.llm,
+                tools=self.tools,
+                messages=messages + [assistant_message] + get_cancel_tool_messages(assistant_message) + post_guidance_message,  # type: ignore
+                call_name="agent_response",
+                **self.llm_args,
+            )
+            assistant_message.raw_data["guidance"] = guidance + post_guidance  # type: ignore
 
         return assistant_message
 
