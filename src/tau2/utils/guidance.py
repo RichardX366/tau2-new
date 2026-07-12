@@ -280,9 +280,12 @@ def consult_ai_guidance(
         else:
             if guidance["type"] == "tool":
                 return False
-            rewritten_query = await maybe_rewrite_query(
-                messages[-1].content or "", guidance["query"], messages  # type: ignore
-            )
+            try:
+                rewritten_query = await maybe_rewrite_query(
+                    messages[-1].content or "", guidance["query"], messages  # type: ignore
+                )
+            except:
+                print(messages[-1])
 
         determination_response = await acompletion(
             model="gpt-5-mini",
