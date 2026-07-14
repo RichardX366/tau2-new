@@ -259,6 +259,7 @@ async def maybe_rewrite_query(
 def consult_ai_guidance(
     messages: list[ChatCompletionMessageParam],
     triggers="before",
+    previous_guidance: list[str] = [],
 ) -> list[str]:
 
     async def determine_guidance_relevance(guidance: dict) -> bool:
@@ -321,6 +322,7 @@ Question: {guidance["query"]}""",
                 determine_guidance_relevance(guidance)
                 for guidance in all_guidance
                 if guidance["triggers"] == triggers
+                and guidance["guidance"] not in previous_guidance
             ]
         )
     )
@@ -382,11 +384,11 @@ def get_pre_guidance_message(messages: list[APICompatibleMessage]):
         for g in m.raw_data.get("guidance", [])
     }
 
-    guidance = consult_ai_guidance(to_litellm_messages(messages))  # type: ignore
+    guidance = consult_ai_guidance(to_litellm_messages(messages), previous_guidance=previous_guidance)  # type: ignore
 
     total_guidance = set(guidance) | previous_guidance
 
-    return guidance, (
+    return list(set(guidance)), (
         [
             SystemMessage(
                 role="system",
@@ -415,12 +417,12 @@ def get_post_guidance_message(messages: list[APICompatibleMessage]):
         for g in m.raw_data.get("guidance", [])
     }
 
-    guidance = consult_ai_guidance(to_litellm_messages(messages), triggers="after")  # type: ignore
+    guidance = consult_ai_guidance(to_litellm_messages(messages), triggers="after", previous_guidance=previous_guidance)  # type: ignore
 
     if not guidance:
         return [], []
 
-    return guidance, (
+    return list(set(guidance)), (
         [
             SystemMessage(
                 role="system",
