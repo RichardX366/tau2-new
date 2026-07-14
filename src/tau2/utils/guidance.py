@@ -256,10 +256,14 @@ async def maybe_rewrite_query(
 #         dump(all_guidance, f, indent=2)
 
 
+async def false():
+    return False
+
+
 def consult_ai_guidance(
     messages: list[ChatCompletionMessageParam],
     triggers="before",
-    previous_guidance: list[str] = [],
+    previous_guidance: set[str] = set(),
 ) -> list[str]:
 
     async def determine_guidance_relevance(guidance: dict) -> bool:
@@ -319,10 +323,13 @@ Question: {guidance["query"]}""",
     request = get_event_loop().run_until_complete(
         gather(
             *[
-                determine_guidance_relevance(guidance)
+                (
+                    determine_guidance_relevance(guidance)
+                    if guidance["triggers"] == triggers
+                    and guidance["guidance"] not in previous_guidance
+                    else false()
+                )
                 for guidance in all_guidance
-                if guidance["triggers"] == triggers
-                and guidance["guidance"] not in previous_guidance
             ]
         )
     )
