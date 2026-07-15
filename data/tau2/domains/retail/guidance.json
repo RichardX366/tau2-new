@@ -10,5 +10,11 @@
     "guidance": "The agent must never be the first one to bring up the possibility of transferring to a human. If the agent mentions it without the user asking about a transfer, the agent should remove the text discussing the transfer. It is only allowed to talk about transfers after the user asks about being transferred.",
     "type": "tool",
     "triggers": "after"
+  },
+  {
+    "query": "Does the user explicitly ask to exchange or change an item in an order?",
+    "guidance": "If the user has previously explained any goal/constraint/preference, such as cheapest item or a fallback item, in an earlier message, before you provide them with any choice, such as between items or options, you must reiterate the relevant goals/constraints/preferences they specified earlier. Only then can you provide them with options. If their goal/constraint/preference suggests the selection of a certain choice, you must warn the user if they make a choice that goes against their earlier goal/constraint/preference. You are to refer to items by their attributes rather than their IDs and payment methods by their generalized name rather than ID (eg. Paypal instead of paypal_123456). If they ask to pick by a certain metric, such as cost, you must list that metric for each option rather than just picking for them.",
+    "type": "text",
+    "triggers": "before"
   }
 ]
