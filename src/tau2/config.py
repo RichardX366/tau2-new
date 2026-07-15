@@ -44,11 +44,11 @@ DEFAULT_RETRY_MAX_WAIT = 10.0  # seconds
 DEFAULT_RETRY_MULTIPLIER = 1.0  # exponential backoff multiplier
 
 # LiteLLM cache
-LLM_CACHE_ENABLED = False
+LLM_CACHE_ENABLED = True
 DEFAULT_LLM_CACHE_TYPE = "redis"
 
 # Redis (fixed infrastructure config)
-REDIS_HOST = "localhost"
+REDIS_HOST = "redis"
 REDIS_PORT = 6379
 REDIS_PASSWORD = ""
 REDIS_PREFIX = "tau2"
