@@ -1,263 +1,61 @@
 from asyncio import gather, get_event_loop
 
-import re
-from typing import cast
 from litellm import acompletion
 from openai.types.chat import ChatCompletionMessageParam
-from cleanlab_tlm.utils.chat import form_prompt_string
-from json import dump, dumps, load
+from json import dumps, load
 
 from tau2.data_model.message import (
     APICompatibleMessage,
     AssistantMessage,
     SystemMessage,
     ToolMessage,
-    UserMessage,
 )
-from tau2.utils.llm_utils import generate, to_litellm_messages
+from tau2.utils.llm_utils import to_litellm_messages
 
 all_guidance: list[dict] = None  # type: ignore
 
-MAX_MESSAGES_TO_CONSIDER = 35
-REWRITE_QUERY_PROMPT = """You are a query rewriter system to formulate a self-contained query out of a user message that may (implicitly) reference prior message history.
 
-You will be given a Message History, the Latest User Message, and a Question that will be asked of the Latest User Message.
-Your output should be a rewritten query that enables anyone to understand what the user is requesting, without having to know the user's Message History or the Latest User Message.
-It must also have enough information for the Question to be answerable.
-
-Notes:
-- If the Latest User Message is self-contained, then output it verbatim.
-- If you decide to rewrite the Latest User Message to form a more understandable query, then incorporate Message History in your rewritten query ONLY when you can confidently resolve references.
-- It is preferable to output the Latest User Message verbatim—even if not fully self-contained—rather than risk misrepresenting it.
-
-Decision gate:
-1) If the Latest User Message is conversational (non-information-seeking or phatic statement), then return the original VERBATIM.
-2) If the Latest User Message is a self-contained question or request, then return the original VERBATIM.
-3) If the Latest User Message contains deixis/possessives (this/that/it/they/these/those/here/there, “the other ...”, his/her/their/he/she/they, then/when) AND those can be uniquely resolved from the prior Message History, then rewrite the User Message following the given Rewriting Rules.
-4) If the Latest User Message needs prior Message History as context AND you can uniquely resolve what is being referenced, then rewrite the User Message following the given Rewriting Rules.
-5) Otherwise, return the Latest User Message VERBATIM.
-
-Rewriting Rules:
-- Do not alter the Latest User Message more than is necessary to make it understandable in isolation.
-- Do not add a lot of extra information, anything you add should be concise.
-- Preserve the intent of the Latest User Message.
-- Resolve references ONLY with facts/information explicitly stated in the Message History. Never invent or guess.
-- Replace vague words with the exact resolved noun phrase(s) from the Message History.
-- Replace vague intent with the exact resolved intent from Message History (example: "What are other AI tools with similar branding?" -> "What are other AI tools with branding similar to ChatGPT?")
-- Keep appropriate specificity: include the key entity/topic if clear from Message History; omit incidental details from Message History that are not essential to understanding the Latest User Message.
-- Impersonal phrasing: avoid “you/your/I/my/we/our” outside quotes.
-- Convert assistant-directed forms ("Can you...", "Could you...", "Would you..."") into general-question form ONLY IF the Latest User Message is a question. Do NOT convert imperatives to questions.
-- Do NOT append examples, steps, or lists. Never add clauses starting with “including”, “such as”, “like”, or “for example”.
-
-## Inputs to Query Rewriter
-
-<message_history>
-{messages}
-</message_history>
-
-<latest_user_message>
-{query}
-</latest_user_message>
-
-<question>
-{question}
-</question>
-
-## Output Instructions
-
-Do NOT answer the User Message, only rewrite it.
-
-Output a self-contained version of the latest user message, that is minimally modified to account for their prior message history if necessary.
-
-Keep the above rules in mind. Output only your rewritten version of the latest user message, nothing else."""
-GUIDANCE_DETERMINATION_PROMPT = """You are an expert assistant that determines whether a certain question is true about the query you are provided. You are only to respond with the word "Yes" or "No" and ABSOLUTELY NOTHING ELSE."""
-AI_GUIDANCE_PROMPT = """
-Your role is to rephrase Review statements into Guidance statements when necessary.
-
-Below you are given a Query and AI-generated Response to that Query, along with an expert's Review of the Response.
-Your task will be to consider whether the Review should be rephrased to be effective Guidance, and if so rewrite it.
-
-<query>
-{query}
-</query>
-
-<response>
-{response}
-</response>
-
-<review>
-{review}
-</review>
-
-## Instructions
-
-First, determine whether the Review needs to be rewritten, in order for it to be an effective Guidance statement (see criteria below).
-If the Review does not seem like an effective Guidance statement, then rewrite it to be one.
-
-### Criteria for an effective Guidance statement
-
-The Guidance will be added into the AI's system prompt (in the appropriate place), to help the AI generate better responses for queries similar to this one. It should be a concise self-contained statement/paragraph that assumes the overall task is already known to the AI.
-
-An effective Guidance statement should follow this template:
-
-> If [scenario], then [advice]
-
-The *scenario* should be a short description of the types of query this Guidance is intended for.
-The *advice* should be phrased as tips on how to respond in this scenario (use phrases like "you should" to directly address the AI).
-The advice need NOT include explanations for why it is being given.
-
-
-It is possible that the Guidance will be given to the AI in scenarios where it shouldn't have been, which is why it is important that the Guidance start with an "If <scenario>" statement to clarify when it is relevant.
-
-The Guidance should not be overly focused on pointing out particular flaws in this specific Response (i.e. phrase it as advice rather than feedback).
-For example: "If the user is simply saying goodbye or thank you, then respond in under 10 words." is better guidance than: "This response was too long, since the user was just saying goodbye, it should be shortened to under 10 words".
-The Guidance will be given to the AI, without the AI having seen this specific Response.
-If response-specific feedback seems critical to include, then templates like this can be used for the Guidance:
-> If [scenario], then do [advice] instead of [feedback phrased as general things to avoid].
-> If [scenario], then do NOT [feedback phrased as general things to avoid]. Instead [advice].
-
-Examples of effective Guidance statements from other use-cases:
-- "If the customer is asking about their account, include this link ([link1]) in your response instead of this link ([link2])."
-- "If the user seems angry, then apologize, respond empathetically, and let them know: they can share their feedback by emailing support@acme.com and our team will look into what happened here."
-
-Good guidance must be concise.
-
-
-### Guidelines for rewriting a Review
-
-Rewrite things very concisely, while ensuring your Guidance is effective according to the above criteria.
-
-When rewriting, assume the Review comes from an authoritative expert and keep your Guidance meticulously faithful to the Review.
-Assume the expert knows significantly more information than the AI receiving your Guidance.
-
-Do NOT add extra motivations/reasons for why the Guidance should be heeded.
-Do NOT make assumptions about why the expert gave their Review.
-Do NOT infer ANY extra instructions/desiderata beyond what can be unequivocally concluded from the Review.
-
-
-## Output Format
-
-If the Review already seems like an effective Guidance statement, then simply output it verbatim.
-Otherwise, rewrite the Review into an effective Guidance statement.
-"""
+GUIDANCE_DETERMINATION_PROMPT = """
+You are an expert assistant that determines whether a certain question is true about the query you are provided.
+If you are provided with multiple messages, the query only applies to the final message labeled "<QUERY_MESSAGE/>", with the other messages just serving as context.
+You are only to respond with the word "Yes" or "No" and ABSOLUTELY NOTHING ELSE."""
 
 
 def format_messages_to_string(
-    messages: list[ChatCompletionMessageParam], query: str
+    messages: list[ChatCompletionMessageParam], lastMessageIndicator=""
 ) -> str:
     """Format messages for inclusion in a prompt. Assumes messages has at least one message."""
-    formatted_messages: list[ChatCompletionMessageParam] = []
-
-    if len(messages) > 0:
-        messages = messages[-MAX_MESSAGES_TO_CONSIDER:]
-        if messages[-1]["role"] == "user":
-            messages = messages[
-                :-1
-            ]  # Remove the last user message (user prompt in some cases) to replace with simply the query
-
-        for message in messages:
-            if message["role"] == "user":  # Dictionary access
-                formatted_messages.append(
-                    {"role": "user", "content": message["content"]}
-                )
-            elif message["role"] == "assistant":  # Dictionary access
-                content = ""
-                if isinstance(message["content"], str):  # type: ignore
-                    content = message["content"]  # type: ignore
-                elif isinstance(message["content"], list):  # type: ignore
-                    content = "\n".join(
-                        [
-                            m.get("text", "")
-                            for m in message["content"]  # type: ignore
-                            if isinstance(m, dict) and "text" in m
-                        ]
-                    )
-
-                # Only include assistant messages that have actual content (skip tool_calls without content)
-                if content:
-                    formatted_messages.append({"role": "assistant", "content": content})
-            # Skip tool messages - they contain internal implementation details that shouldn't be in the rewrite context
-
-    formatted_messages.append({"role": "user", "content": query})
-    messages_str = form_prompt_string(formatted_messages)  # type: ignore
-    # Remove 'Assistant: ' prefix if present (added to the end of string by form_prompt_string)
-    trailing_assistant_prefix_pattern = rf"\s*Assistant:\s*$"
-    messages_str = re.sub(trailing_assistant_prefix_pattern, "", messages_str)
+    messages_str = ""
+    for i, message in enumerate(messages):
+        messages_str += "<MESSAGE>\n"
+        if lastMessageIndicator and i == len(messages) - 1:
+            messages_str += lastMessageIndicator + "\n"
+        messages_str += message["role"].capitalize() + ":\n"
+        messages_str += message["content"] or ""  # type: ignore
+        if message.get("content", "") and message.get("tool_calls", []):
+            messages_str += "\n\n"
+        if message.get("tool_calls", []):
+            messages_str += dumps(message.get("tool_calls"), indent=2)
+        messages_str += "\n</MESSAGE>\n\n"
     return messages_str
-
-
-async def maybe_rewrite_query(
-    query: str,
-    question: str,
-    messages: list[ChatCompletionMessageParam] | None,
-) -> str:
-    """Handles the logic for rewriting a query if needed.
-    - If messages are provided and the conversation is longer than a single turn it will call the LLM to rewrite the query.
-    """
-
-    if messages is None or len(messages) == 0:
-        return query
-
-    messages_str = format_messages_to_string(messages, query)
-
-    response = await acompletion(
-        model="gpt-5-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": REWRITE_QUERY_PROMPT.format(
-                    query=query, messages=messages_str, question=question
-                ),
-            }
-        ],
-    )
-
-    if response is not None:
-        return response.choices[0].message.content or ""  # type: ignore
-
-    return query  # Return original query if response is None
-
-
-# def create_guidance(
-#     query: str,
-#     messages: list[ChatCompletionMessageParam],
-#     explanation: str,
-#     response: str,
-#     tlm: TLM,
-#     domain: str,
-# ):
-#     global all_guidance
-#     GUIDANCE_FILE = f"data/tau2/domains/{domain}/guidance.json"
-
-#     try:
-#         with open(GUIDANCE_FILE, "r") as f:
-#             all_guidance = load(f)
-#     except FileNotFoundError:
-#         all_guidance = []
-
-#     new_query = maybe_rewrite_query(query, None, messages)
-
-#     guidance = tlm.create(
-#         messages=[
-#             {
-#                 "role": "user",
-#                 "content": AI_GUIDANCE_PROMPT.format(
-#                     query=query, review=explanation, response=response
-#                 ),
-#             }
-#         ],
-#     )
-
-#     to_add = {"query": new_query, "guidance": guidance["response"]["choices"][0]["message"]["content"]}  # type: ignore
-
-#     all_guidance.append(to_add)
-
-#     with open(GUIDANCE_FILE, "w") as f:
-#         dump(all_guidance, f, indent=2)
 
 
 async def false():
     return False
+
+
+def get_last_n_messages(messages: list[ChatCompletionMessageParam], n: int):
+    to_return = []
+    i = len(messages) - 1
+    while n > 0:
+        m = messages[i]
+        if m["role"] != "tool":
+            n -= 1
+        to_return = [m] + to_return
+        i -= 1
+        if i < 0:
+            break
+    return to_return
 
 
 def consult_ai_guidance(
@@ -271,35 +69,20 @@ def consult_ai_guidance(
             if messages[-1]["role"] == "tool":
                 if guidance["type"] != "tool":
                     return False
-                rewritten_query = ""
-                for message in messages[::-1]:
-                    if message["role"] == "tool":
-                        content = cast(str, message["content"])
-                        rewritten_query = "Tool:\n" + content + "\n" + rewritten_query
-                    else:
-                        tool_calls = message["tool_calls"]  # type: ignore
-                        rewritten_query = (
-                            f"{message['role'].capitalize()}:\n{dumps(tool_calls, indent=2)}\n"
-                            + rewritten_query
-                        )
-                        break
             else:
                 if guidance["type"] == "tool":
                     return False
-                rewritten_query = await maybe_rewrite_query(
-                    messages[-1]["content"] or "", guidance["query"], messages  # type: ignore
-                )
         else:
             if guidance["type"] == "tool":
                 if not messages[-1].get("tool_calls", []):
                     return False
-                rewritten_query = dumps(messages[-1]["tool_calls"], indent=2)  # type: ignore
             else:
                 if not messages[-1]["content"]:  # type: ignore
                     return False
-                rewritten_query = await maybe_rewrite_query(
-                    messages[-1]["content"], guidance["query"], messages  # type: ignore
-                )
+
+        query = format_messages_to_string(
+            get_last_n_messages(messages, guidance["numMessages"]), "<QUERY_MESSAGE/>"
+        )
 
         determination_response = await acompletion(
             model="gpt-5-mini",
@@ -310,8 +93,13 @@ def consult_ai_guidance(
                 },
                 {
                     "role": "user",
-                    "content": f"""Query: {rewritten_query}
-Question: {guidance["query"]}""",
+                    "content": f"""<QUERY>
+{query}
+</QUERY>
+
+<QUESTION>
+{guidance["query"]}
+</QUESTION>""",
                 },
             ],
         )
@@ -358,6 +146,22 @@ def load_guidance(domain: str):
             all_guidance = load(f)
     except FileNotFoundError:
         all_guidance = []
+    for guidance in all_guidance:
+        if "triggers" not in guidance:
+            guidance["triggers"] = "before"
+        if "type" not in guidance:
+            guidance["type"] = "text"
+        if "numMessages" not in guidance:
+            guidance["numMessages"] = 1
+        if "permanent" not in guidance:
+            guidance["permanent"] = False
+
+
+def get_guidance_dict(guidance: str):
+    for g in all_guidance:
+        if g["guidance"] == guidance:
+            return g
+    return {}
 
 
 def get_cancel_tool_messages(assistant_message: AssistantMessage) -> list[ToolMessage]:
@@ -389,6 +193,7 @@ def get_pre_guidance_message(messages: list[APICompatibleMessage]):
         for m in messages
         if isinstance(m, AssistantMessage) and m.raw_data
         for g in m.raw_data.get("guidance", [])
+        if get_guidance_dict(g)["permanent"]
     }
 
     guidance = consult_ai_guidance(to_litellm_messages(messages), previous_guidance=previous_guidance)  # type: ignore
@@ -422,6 +227,7 @@ def get_post_guidance_message(messages: list[APICompatibleMessage]):
         for m in messages
         if isinstance(m, AssistantMessage) and m.raw_data
         for g in m.raw_data.get("guidance", [])
+        if get_guidance_dict(g)["permanent"]
     }
 
     guidance = consult_ai_guidance(to_litellm_messages(messages), triggers="after", previous_guidance=previous_guidance)  # type: ignore
