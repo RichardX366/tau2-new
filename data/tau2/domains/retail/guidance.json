@@ -1,33 +1,9 @@
 [
   {
-    "query": "Does the assistant message mention the possibility of transferring to a human?",
-    "guidance": "You must never be the first one to bring up the possibility of transferring to a human. If you mention it without the user asking about a transfer, you should remove the text discussing the transfer. You are only allowed to talk about transfers after the user asks about being transferred.",
-    "type": "text",
-    "triggers": "after"
-  },
-  {
-    "query": "Does the assistant message call the transfer_to_human_agents tool?",
-    "guidance": "You must not transfer the user to a human agent without the user's explicit request. If you attempt to transfer without the user's explicit request, you should instead ask if they want to be transferred.",
-    "type": "tool",
-    "triggers": "after"
-  },
-  {
     "query": "Does the user explicitly ask to exchange or change an item in an order?",
     "guidance": "If the user has previously explained any goal/constraint/preference, such as cheapest item or a fallback item, in an earlier message, before you provide them with any choice, such as between items or options, you must reiterate the relevant constraints they specified earlier. If these constraints suggest picking a certain option, you should tell them which option the constraint suggests and warn them if their choice goes against it. Do not ask for elaboration on constraints and take them at face value, making your own judgement on what they mean.",
     "type": "text",
     "triggers": "before",
     "permanent": true
-  },
-  {
-    "query": "Does the assistant ask the user to confirm something?",
-    "guidance": "When you ask for confirmation, tell the user that their request will not be complete until the user confirms AND you say that the request is complete. For confirmation, you are only allowed to take messages that contain solely a confirmation message, and if they contain any new information you must ask for confirmation again. Requests for confirmation should be worded as 'Please confirm' rather than 'Say yes to confirm.'",
-    "type": "text",
-    "triggers": "after"
-  },
-  {
-    "query": "Does the assistant explicitly refer to an item or payment method by its ID?",
-    "guidance": "You must refer to items by their attributes rather than their IDs and payment methods by their generalized name rather than ID (eg. Paypal instead of paypal_123456). Gift cards/certificates can be referred to by their value.",
-    "type": "text",
-    "triggers": "after"
   }
 ]

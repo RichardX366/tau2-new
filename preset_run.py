@@ -205,6 +205,8 @@ def modify_tasks(trial: int):
 if __name__ == "__main__":
     results: list[Results] = []
 
+    Path("data/simulations/temp/results.json").unlink(missing_ok=True)
+
     for trial in range(trials):
         modified = modify_tasks(trial)
         result = run_domain(config)
