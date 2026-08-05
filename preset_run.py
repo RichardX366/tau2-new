@@ -2,6 +2,7 @@ import importlib
 import asyncio
 from json import dumps, loads
 from pathlib import Path
+from shutil import rmtree
 from dotenv import load_dotenv
 from openai import OpenAI
 from tlm import TLM
@@ -21,7 +22,6 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import local
 from tau2.runner.batch import run_domain
 from tau2.utils.llm_utils import to_tau2_messages
-from os import remove, removedirs
 
 load_dotenv()
 
@@ -205,13 +205,12 @@ def modify_tasks(trial: int):
 if __name__ == "__main__":
     results: list[Results] = []
 
-    Path("data/simulations/temp/results.json").unlink(missing_ok=True)
+    rmtree("data/simulations/temp", ignore_errors=True)
 
     for trial in range(trials):
         modified = modify_tasks(trial)
         result = run_domain(config)
-        remove("data/simulations/temp/results.json")
-        removedirs("data/simulations/temp")
+        rmtree("data/simulations/temp", ignore_errors=True)
         for sim in result.simulations:
             if sim.info is None:
                 sim.info = {}
