@@ -67,7 +67,7 @@ def consult_ai_guidance(
     async def determine_guidance_relevance(guidance: dict) -> bool:
         if guidance["triggers"] == "before":
             if messages[-1]["role"] == "tool":
-                if guidance["type"] != "tool":
+                if guidance["type"] == "text":
                     return False
             else:
                 if guidance["type"] == "tool":
@@ -76,7 +76,7 @@ def consult_ai_guidance(
             if guidance["type"] == "tool":
                 if not messages[-1].get("tool_calls", []):
                     return False
-            else:
+            elif guidance["type"] == "text":
                 if not messages[-1]["content"]:  # type: ignore
                     return False
 

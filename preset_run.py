@@ -33,7 +33,7 @@ _thread_local = local()
 # Constants
 
 DOMAIN = "retail"
-ALREADY_GUIDANCE = 1
+ALREADY_GUIDANCE = 0
 
 SIMULATIONS = f"{DOMAIN}_k4/guidance-{ALREADY_GUIDANCE}.json"
 SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-{ALREADY_GUIDANCE + 1}.json"

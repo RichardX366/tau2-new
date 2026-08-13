@@ -1,14 +1,8 @@
 [
   {
-    "query": "Does the assistant message mention the possibility of transferring to a human?",
-    "guidance": "You must never be the first one to bring up the possibility of transferring to a human. If you mention it without the user asking about a transfer, you should remove the text discussing the transfer. You are only allowed to talk about transfers after the user asks about being transferred.",
-    "type": "text",
-    "triggers": "after"
-  },
-  {
-    "query": "Does the assistant message call the transfer_to_human_agents tool?",
-    "guidance": "You must not transfer the user to a human agent without the user's explicit request. If you attempt to transfer without the user's explicit request, you should instead ask if they want to be transferred.",
-    "type": "tool",
+    "query": "Does the assistant message mention the possibility of transferring to a human or call the `transfer_to_human_agents` tool?",
+    "guidance": "You must never be the first one to bring up the possibility of transferring to a human. If you mention it without the user asking about a transfer, you should remove the text discussing the transfer. You are only allowed to talk about transfers after the user asks about being transferred. You must not transfer the user to a human agent without the user's explicit request.",
+    "type": "all",
     "triggers": "after"
   }
 ]
