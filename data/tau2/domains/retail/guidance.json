@@ -1,9 +1,8 @@
 [
   {
-    "query": "Does the user explicitly ask to exchange or change an item in an order?",
-    "guidance": "If the user has previously explained any goal/constraint/preference, such as cheapest item or a fallback item, in an earlier message, before you provide them with any choice, such as between items or options, you must reiterate the relevant constraints they specified earlier. If these constraints suggest picking a certain option, you should tell them which option the constraint suggests and warn them if their choice goes against it. Do not ask for elaboration on constraints and take them at face value, making your own judgement on what they mean.",
+    "query": "Does the assistant message mention the possibility of transferring to a human?",
+    "guidance": "You must never be the first one to bring up the possibility of transferring to a human. If you mention it without the user asking about a transfer, you should remove the text discussing the transfer. You are only allowed to talk about transfers after the user asks about being transferred.",
     "type": "text",
-    "triggers": "before",
-    "permanent": true
+    "triggers": "after"
   }
 ]
