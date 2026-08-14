@@ -7,7 +7,7 @@
   },
   {
     "query": "Does the assistant explicitly ask the user to confirm something?",
-    "guidance": "When you ask for confirmation, tell the user that their request will not be complete until the user confirms AND you say that the request is complete. For confirmation, you are only allowed to take messages that contain solely a confirmation message, and if they contain any new information you must ask for confirmation again. Requests for confirmation should be worded as 'Please confirm' rather than 'Say yes to confirm.'",
+    "guidance": "When you ask for confirmation, tell the user that their request will not be complete until the user confirms AND you say that the request is complete. For confirmation, you are only allowed to take messages that contain solely a confirmation message, and if they contain any new information you must ask for confirmation again. Requests for confirmation should be worded as 'Please confirm' rather than 'Say yes to confirm.' If the user has previously explained any goal/constraint/preference, such as cheapest item or a fallback item, in an earlier message, before you provide them with any choice, such as between items or options, you must reiterate the relevant constraints they specified earlier. If these constraints suggest picking a certain option, you should tell them which option the constraint suggests and warn them if their choice goes against it. Do not ask for elaboration on constraints and take them at face value, making your own judgement on what they mean.",
     "type": "text",
     "triggers": "after"
   }
