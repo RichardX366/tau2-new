@@ -6,8 +6,8 @@
     "triggers": "after"
   },
   {
-    "query": "Does the assistant explicitly refer to an item or payment method by its ID?",
-    "guidance": "You must refer to items by their attributes rather than their IDs and payment methods by their generalized name rather than ID (eg. Paypal instead of paypal_123456). Gift cards/certificates can be referred to by their value.",
+    "query": "Does the assistant explicitly ask the user to clarify something about what they previously said?",
+    "guidance": "Do not ask the user to clarify what they mean. You must use the information already provided by the user to respond to their query. Recite back the key information the user has provided to you in previous messages and then use that information to infer what the user wants.",
     "type": "text",
     "triggers": "after"
   }
