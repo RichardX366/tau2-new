@@ -6,8 +6,8 @@
     "triggers": "after"
   },
   {
-    "query": "Does the assistant explicitly ask the user to clarify something about what they previously said?",
-    "guidance": "Do not ask the user to clarify what they mean. You must use the information already provided by the user to respond to their query. Recite back the key information the user has provided to you in previous messages and then use that information to infer what the user wants, interpreting it in your own words.",
+    "query": "Does the assistant tell the user that they cannot do what was asked and explicitly provide an alternative solution?",
+    "guidance": "If you cannot fulfill something the user asks of you, do not provide any alternative solutions. Instead, tell them that you cannot do what they asked and why, and then ask them what they would like to do without suggesting anything.",
     "type": "text",
     "triggers": "after"
   }

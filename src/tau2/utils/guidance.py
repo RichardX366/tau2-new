@@ -1,9 +1,22 @@
-from asyncio import gather, get_event_loop
-
-from litellm import acompletion
-from openai.types.chat import ChatCompletionMessageParam
+import asyncio
+import threading
+from concurrent.futures import Future
 from json import dumps, load
+from typing import Any, Coroutine, TypeVar
 
+import litellm
+from litellm import acompletion
+from litellm.caching.caching import Cache
+from openai.types.chat import ChatCompletionMessageParam
+
+from tau2.config import (
+    REDIS_CACHE_TTL,
+    REDIS_CACHE_VERSION,
+    REDIS_HOST,
+    REDIS_PASSWORD,
+    REDIS_PORT,
+    REDIS_PREFIX,
+)
 from tau2.data_model.message import (
     APICompatibleMessage,
     AssistantMessage,
@@ -13,6 +26,156 @@ from tau2.data_model.message import (
 from tau2.utils.llm_utils import to_litellm_messages
 
 all_guidance: list[dict] = None  # type: ignore
+
+T = TypeVar("T")
+
+
+class _GuidanceEventLoop:
+    """Own the single event loop used by asynchronous guidance requests."""
+
+    def __init__(self) -> None:
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
+        self._started = threading.Event()
+        self._lock = threading.Lock()
+        self._cache: Cache | None = None
+        self._previous_cache: Any = None
+        self._cache_active = False
+
+    def _run(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self._loop = loop
+        self._started.set()
+        try:
+            loop.run_forever()
+        finally:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()
+            asyncio.set_event_loop(None)
+
+    def start(self) -> None:
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return
+            self._started.clear()
+            self._thread = threading.Thread(
+                target=self._run,
+                name="tau2-guidance-event-loop",
+                daemon=True,
+            )
+            self._thread.start()
+        self._started.wait()
+
+    def run(self, coroutine: Coroutine[object, object, T]) -> T:
+        self.start()
+        loop = self._loop
+        if loop is None:
+            coroutine.close()
+            raise RuntimeError("Guidance event loop failed to start")
+        future: Future[T] = asyncio.run_coroutine_threadsafe(coroutine, loop)
+        return future.result()
+
+    async def _drain_request_tasks(self) -> None:
+        """Await finite LiteLLM work while leaving its logging worker alive."""
+        current = asyncio.current_task()
+        pending = []
+        for task in asyncio.all_tasks():
+            coroutine_name = task.get_coro().__qualname__
+            if (
+                task is not current
+                and not task.done()
+                and coroutine_name != "LoggingWorker._worker_loop"
+            ):
+                pending.append(task)
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
+    async def _activate_cache(self) -> None:
+        if self._cache_active:
+            return
+        if self._cache is None:
+            self._cache = Cache(
+                type="redis",
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                password=REDIS_PASSWORD,
+                namespace=(
+                    f"{REDIS_PREFIX}:{REDIS_CACHE_VERSION}:litellm:guidance"
+                ),
+                ttl=REDIS_CACHE_TTL,
+            )
+        self._previous_cache = litellm.cache
+        litellm.cache = self._cache
+        self._cache_active = True
+
+    def activate_cache(self) -> None:
+        """Install the guidance-only cache before starting guidance requests."""
+        self.run(self._activate_cache())
+
+    async def _deactivate_cache(self) -> None:
+        if not self._cache_active:
+            return
+        await self._drain_request_tasks()
+        if litellm.cache is self._cache:
+            litellm.cache = self._previous_cache
+        self._previous_cache = None
+        self._cache_active = False
+
+    def deactivate_cache(self) -> None:
+        """Drain guidance cache writes and restore Tau2's global cache."""
+        self.run(self._deactivate_cache())
+
+    def shutdown(self) -> None:
+        """Cancel and await background work before closing the owned loop."""
+        with self._lock:
+            loop = self._loop
+            thread = self._thread
+            if loop is None or thread is None:
+                return
+
+        async def close_cache_and_cancel_pending_tasks() -> None:
+            await self._deactivate_cache()
+            if self._cache is not None:
+                await self._cache.disconnect()
+                self._cache = None
+            current = asyncio.current_task()
+            pending = [
+                task
+                for task in asyncio.all_tasks()
+                if task is not current and not task.done()
+            ]
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+
+        asyncio.run_coroutine_threadsafe(
+            close_cache_and_cancel_pending_tasks(), loop
+        ).result()
+        loop.call_soon_threadsafe(loop.stop)
+        thread.join()
+        with self._lock:
+            self._loop = None
+            self._thread = None
+
+
+_guidance_event_loop = _GuidanceEventLoop()
+
+
+def activate_guidance_cache() -> None:
+    """Use a Redis cache owned exclusively by the guidance event loop."""
+    _guidance_event_loop.activate_cache()
+
+
+def deactivate_guidance_cache() -> None:
+    """Finish guidance cache work and restore Tau2's cache."""
+    _guidance_event_loop.deactivate_cache()
+
+
+def shutdown_guidance_event_loop() -> None:
+    """Shut down LiteLLM work scheduled by the guidance subsystem."""
+    _guidance_event_loop.shutdown()
 
 
 GUIDANCE_DETERMINATION_PROMPT = """
@@ -108,8 +271,8 @@ def consult_ai_guidance(
             "yes" in determination_response.choices[0].message.content.strip().lower()  # type: ignore
         )
 
-    request = get_event_loop().run_until_complete(
-        gather(
+    async def determine_all_guidance() -> list[bool]:
+        return await asyncio.gather(
             *[
                 (
                     determine_guidance_relevance(guidance)
@@ -120,7 +283,8 @@ def consult_ai_guidance(
                 for guidance in all_guidance
             ]
         )
-    )
+
+    request = _guidance_event_loop.run(determine_all_guidance())
 
     guidance_returned = [
         guidance["guidance"]

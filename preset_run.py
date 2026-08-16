@@ -1,5 +1,4 @@
 import importlib
-import asyncio
 from json import dumps, loads
 from pathlib import Path
 from shutil import rmtree
@@ -9,9 +8,12 @@ from tlm import TLM
 from tlm.config.schema import Config
 from tlm.config.presets import ReasoningEffort
 from src.tau2.utils.guidance import (
+    activate_guidance_cache,
+    deactivate_guidance_cache,
     get_post_guidance_message,
     get_pre_guidance_message,
     load_guidance,
+    shutdown_guidance_event_loop,
 )
 from tau2.agent.llm_agent import LLMAgent
 from tau2.config import DEFAULT_MAX_STEPS
@@ -19,16 +21,12 @@ from tau2.data_model.message import APICompatibleMessage, SystemMessage
 from tau2.data_model.simulation import Results, TextRunConfig
 from tau2.environment.environment import Environment
 from concurrent.futures import ThreadPoolExecutor
-from threading import local
 from tau2.runner.batch import run_domain
 from tau2.utils.llm_utils import to_tau2_messages
 
 load_dotenv()
 
 client = OpenAI()
-
-# Thread-local storage for event loops
-_thread_local = local()
 
 # Constants
 
@@ -39,14 +37,6 @@ SIMULATIONS = f"{DOMAIN}_k4/guidance-{ALREADY_GUIDANCE}.json"
 SAVE_TO = f"data/simulations/{DOMAIN}_k4/guidance-{ALREADY_GUIDANCE + 1}.json"
 
 # Code
-
-
-def get_event_loop():
-    """Get or create an event loop for the current thread."""
-    if not hasattr(_thread_local, "loop"):
-        _thread_local.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_thread_local.loop)
-    return _thread_local.loop
 
 
 load_guidance(DOMAIN)
@@ -109,9 +99,7 @@ all_simulations.sort(key=lambda x: x["task_id"])
 
 
 def worker(allMessages: list[APICompatibleMessage], task_id: str):
-    """Worker function that runs in its own thread with its own event loop."""
-    # Ensure this thread has an event loop
-    loop = get_event_loop()
+    """Inspect one task, using the shared guidance event loop for LLM calls."""
 
     i = 0
     tlm = TLM(
@@ -202,13 +190,18 @@ def modify_tasks(trial: int):
     return modified_tasks
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Generate the next guided simulation set."""
     results: list[Results] = []
 
     rmtree("data/simulations/temp", ignore_errors=True)
 
     for trial in range(trials):
-        modified = modify_tasks(trial)
+        activate_guidance_cache()
+        try:
+            modified = modify_tasks(trial)
+        finally:
+            deactivate_guidance_cache()
         result = run_domain(config)
         rmtree("data/simulations/temp", ignore_errors=True)
         for sim in result.simulations:
@@ -245,3 +238,10 @@ if __name__ == "__main__":
 
     with open(f"data/tau2/domains/{DOMAIN}/tasks.json", "w") as f:
         f.write(dumps(tasks, indent=4))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        shutdown_guidance_event_loop()
