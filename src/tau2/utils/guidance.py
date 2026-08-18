@@ -22,6 +22,7 @@ from tau2.data_model.message import (
     AssistantMessage,
     SystemMessage,
     ToolMessage,
+    UserMessage,
 )
 from tau2.utils.llm_utils import to_litellm_messages
 
@@ -96,13 +97,11 @@ class _GuidanceEventLoop:
             return
         if self._cache is None:
             self._cache = Cache(
-                type="redis",
+                type="redis",  # type: ignore
                 host=REDIS_HOST,
-                port=REDIS_PORT,
+                port=REDIS_PORT,  # type: ignore
                 password=REDIS_PASSWORD,
-                namespace=(
-                    f"{REDIS_PREFIX}:{REDIS_CACHE_VERSION}:litellm:guidance"
-                ),
+                namespace=(f"{REDIS_PREFIX}:{REDIS_CACHE_VERSION}:litellm:guidance"),
                 ttl=REDIS_CACHE_TTL,
             )
         self._previous_cache = litellm.cache
@@ -366,8 +365,8 @@ def get_pre_guidance_message(messages: list[APICompatibleMessage]):
 
     return list(set(guidance)), (
         [
-            SystemMessage(
-                role="system",
+            UserMessage(
+                role="user",
                 content="Guidance for the next assistant response. You must follow the rules that apply. If they don't apply, you can ignore them:\n"
                 + "\n".join([f"- {g}" for g in total_guidance]),
             )
@@ -401,8 +400,8 @@ def get_post_guidance_message(messages: list[APICompatibleMessage]):
 
     return list(set(guidance)), (
         [
-            SystemMessage(
-                role="system",
+            UserMessage(
+                role="user",
                 content=(
                     f"""There may have been some issues with your previous message. You must rewrite it to address the following guidance. You must follow the rules that apply. If they don't apply, you can ignore them. If none apply or no changes are needed, just repeat your previous message verbatim:
 {"\n".join([f"- {g}" for g in guidance])}"""
