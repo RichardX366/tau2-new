@@ -24,7 +24,7 @@ from tau2.data_model.message import (
     ToolMessage,
     UserMessage,
 )
-from tau2.utils.llm_utils import to_litellm_messages
+from tau2.utils.llm_utils import generate, to_litellm_messages
 
 all_guidance: list[dict] = None  # type: ignore
 
@@ -327,14 +327,16 @@ def get_guidance_dict(guidance: str):
     return {}
 
 
-def get_cancel_tool_messages(assistant_message: AssistantMessage) -> list[ToolMessage]:
+def get_cancel_tool_messages(
+    assistant_message: AssistantMessage, content="Tool Call Canceled"
+) -> list[ToolMessage]:
     canceled_tool_messages = []
     if assistant_message.tool_calls:
         canceled_tool_messages = [
             ToolMessage(
                 id=tool_call.id,
                 role="tool",
-                content="Tool Call Canceled",
+                content=content,
                 requestor="assistant",
             )
             for tool_call in assistant_message.tool_calls
@@ -365,8 +367,8 @@ def get_pre_guidance_message(messages: list[APICompatibleMessage]):
 
     return list(set(guidance)), (
         [
-            UserMessage(
-                role="user",
+            SystemMessage(
+                role="system",
                 content="Guidance for the next assistant response. You must follow the rules that apply. If they don't apply, you can ignore them:\n"
                 + "\n".join([f"- {g}" for g in total_guidance]),
             )
@@ -400,8 +402,8 @@ def get_post_guidance_message(messages: list[APICompatibleMessage]):
 
     return list(set(guidance)), (
         [
-            UserMessage(
-                role="user",
+            SystemMessage(
+                role="system",
                 content=(
                     f"""There may have been some issues with your previous message. You must rewrite it to address the following guidance. You must follow the rules that apply. If they don't apply, you can ignore them. If none apply or no changes are needed, just repeat your previous message verbatim:
 {"\n".join([f"- {g}" for g in guidance])}"""
@@ -417,3 +419,42 @@ Be sure that if you rewrite your message, you still adhere to the following guid
             )
         ]
     )
+
+
+def ensure_guidance_followed(
+    messages: list[APICompatibleMessage], guidance: set[str]
+) -> AssistantMessage:
+    """
+    Given the message history and a list of guidance statements, determine if the assistant's last message adheres to the guidance. If not, return a new message that instructs the assistant to rewrite its last message to follow the guidance.
+
+    Returns:
+    - guidance_followed: bool indicating whether the guidance was followed
+    - new_messages: list of messages to be sent to the assistant (empty if guidance was followed)
+    """
+
+    if not guidance:
+        return messages[-1]  # type: ignore
+
+    response = generate(
+        model="gpt-5-mini",
+        messages=messages
+        + get_cancel_tool_messages(messages[-1], "Tool Call Pending")  # type: ignore
+        + [
+            SystemMessage(
+                role="system",
+                content=f"""Does the previous assistant message adhere to the following guidance:
+{"\n".join([f"- {g}" for g in guidance])}
+
+If so, respond with 'Yes'. Otherwise, rewrite it to adhere to the guidance""",
+            )
+        ],
+    )
+
+    if (
+        response.content
+        and response.content.strip().lower().startswith("yes")
+        and len(response.content.strip()) <= 10
+    ):
+        return messages[-1]  # type: ignore
+
+    return response  # type: ignore

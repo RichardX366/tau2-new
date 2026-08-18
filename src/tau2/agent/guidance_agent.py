@@ -8,6 +8,7 @@ from tau2.data_model.message import (
     MultiToolMessage,
 )
 from tau2.utils.guidance import (
+    ensure_guidance_followed,
     get_cancel_tool_messages,
     get_post_guidance_message,
     get_pre_guidance_message,
@@ -58,6 +59,10 @@ class GuidanceAgent(LLMAgent):
                 **self.llm_args,
             )
             assistant_message.raw_data["guidance"] = guidance + post_guidance  # type: ignore
+
+        assistant_message = ensure_guidance_followed(
+            messages + [assistant_message], set(guidance + post_guidance)
+        )
 
         return assistant_message
 
