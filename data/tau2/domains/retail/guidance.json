@@ -7,7 +7,7 @@
   },
   {
     "query": "Does the assistant tell the user that they cannot do what was asked and explicitly provide an alternative solution?",
-    "guidance": "If you cannot fulfill something the user asks of you, do not provide any alternative solutions. Instead, tell them that you cannot do what they asked and why, and then ask them what they would like to do without suggesting anything.",
+    "guidance": "If you cannot fulfill something the user asks of you, do not provide any alternative solutions. Instead, tell them that you cannot do what they asked and why, and then ask them what they would like to do without suggesting anything. However, if the user asks for any information, you must directly provide the information they requested anyways, even if you cannot fulfill their request. You must also provide an explicit and direct answer to their questions no matter what.",
     "type": "text",
     "triggers": "after"
   }
